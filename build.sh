@@ -39,10 +39,17 @@ then
     do
         echo "${CYN}    src/$i.cpp"
         SRC="src/$i.cpp"
-	LIB="-c -o lib/$i.o"
+	LIB="lib/$i.o"
+
+        STAT_SRC=`stat -c %Y $SRC`
+        STAT_OUT=`stat -c %Y $LIB`
+        if [ $STAT_SRC -gt $STAT_OUT ]
+        then
+           echo "      -- $SRC newer, recompiling..."
+        fi
 
 	# compile command
-        g++ $LIB $SRC $STD_OPTS $INC_OPTS
+        g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
 
     done
 fi
