@@ -11,11 +11,12 @@ RST=`tput sgr0`
 print_command_line_opts()
 {
     echo "${RED}  Options:"
-    echo "    --lib : (re)build all of the .o files needed for linking libraries"
-    echo "    --bin : (re)build all of the c++ executables (test files and final executable)${RST}"
+    echo "    --lib   : (re)build all of the .o files needed for linking libraries"
+    echo "    --bin   : (re)build all of the c++ executables (test files and final executable)"
+    echo "    --clean : remove all non-source/header files (.o .bin .exe)${RST}"
 }
 
-if [ $# -gt 1 ] || [ $# -lt 1 ] # we need exactly one argument
+if [ $# -ne 1 ] # we need exactly one argument
 then
     echo "${GRN}  Expecting only one argument"
     print_command_line_opts
@@ -34,27 +35,49 @@ if [ $1 == --lib ] # build object code files
 then
     echo "${YEL}  Building object (.o) files for linking..."
 
-    LINK_FILES=( "serial-interface" ) # list of files that need to be compiled into object code
-    for i in "${LINK_FILES[@]}"
+    # list of files that need to be compiled into object code
+    LINK_FILES=( "serial-interface" "XboxControllerInterface" )
+    
+    for i in "${LINK_FILES[@]}" # iterate through the files
     do
         echo "${CYN}    src/$i.cpp"
         SRC="src/$i.cpp"
-	LIB="lib/$i.o"
+        LIB="lib/$i.o"
 
         STAT_SRC=`stat -c %Y $SRC`
-        STAT_OUT=`stat -c %Y $LIB`
-        if [ $STAT_SRC -gt $STAT_OUT ]
+        STAT_OUT=0
+
+        if [ -e $LIB ] # make sure the .o file exists before testing it with stat
         then
-           echo "      -- $SRC newer, recompiling..."
+            STAT_OUT=`stat -c %Y $LIB`
         fi
 
-	# compile command
-        g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
+        if [ $STAT_SRC -gt $STAT_OUT ]
+        then
+            echo "      -- $SRC newer, recompiling..."
+            g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
+        else
+            echo "      -- $LIB newer, skipping compilation..."
+        fi
 
     done
-fi
+elif [ $1 == --bin ] # build executables
+then
+    echo "${YEL}  Building executables..."
 
-echo "${MAG}  Building sample hello world..."
-RESULT=`g++ src/main.cpp -o bin/main  $STD_OPTS $INC_OPTS`
+    g++ src/main.cpp -o bin/main $STD_OPTS $INC_OPTS    
+
+elif [ $1 == --clean ] # delete all unneccessary files
+then
+    echo "${YEL}  Cleaning up the workspace..."
+
+    # remove everything in bin/ and lib/
+    rm -rf bin/*
+    rm -rf lib/*
+    
+fi 
+
+#echo "${MAG}  Building sample hello world..."
+#RESULT=`g++ src/main.cpp -o bin/main  $STD_OPTS $INC_OPTS`
 
 # i never finish anythi
