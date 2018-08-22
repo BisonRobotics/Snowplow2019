@@ -6,12 +6,33 @@
 #include <SDL/SDL.h>
 #include <XboxControllerInterface.h>
 
+XboxController::XboxController(void) {
+    // Joystick doesnt work w/o video...stupid
+    int res = SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_VIDEO);
+
+    if(res < 0) {
+        std::cerr << "Couldn't initialize SDL: " << SDL_GetError() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    int joysticks = SDL_NumJoysticks();
+    SDL_JoystickEventState(SDL_ENABLE);
+
+    std::cout << "Joysticks found: " << joysticks << std::endl;
+    for(int i = 0; i < joysticks; i++) {
+        std::cout << "    " << SDL_JoystickName(i) << std::endl;
+        this->joystick_ptr_vec.push_back(SDL_JoystickOpen(i));
+    }
+}
+
 void XboxController::update(void) {
     SDL_Event event;
 
     while(SDL_PollEvent(&event)) {
+        //std::cout << "Event found..." << std::endl;
         switch(event.type) {
             case SDL_JOYAXISMOTION:
+                //std::cout << "SDL_JOYAXISMOTION\n";
                 switch(event.jaxis.axis) {
                     case 0:
                         this->leftJoystickX = event.jaxis.value; break;
@@ -30,6 +51,7 @@ void XboxController::update(void) {
                 }
                 break;
             case SDL_JOYBUTTONDOWN:
+                //std::cout << "SDL_JOYBUTTONDOWN\n";
                 switch(event.jbutton.button) {
                     case 0:
                         this->btn_A = true; break;
@@ -56,6 +78,7 @@ void XboxController::update(void) {
                 }
                 break;
             case SDL_JOYBUTTONUP:
+                //std::cout << "SDL_JOYBUTTONUP\n";
                 switch(event.jbutton.button) {
                     case 0:
                         this->btn_A = false; break;
@@ -144,18 +167,3 @@ bool XboxController::buttonPressed(xBox_BUTTON btn) {
             break;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

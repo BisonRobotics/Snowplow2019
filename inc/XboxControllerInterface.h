@@ -1,6 +1,7 @@
 #ifndef __JJC__XBOXCONTROLLERINTERFACE__H__
 #define __JJC__XBOXCONTROLLERINTERFACE__H__
 
+#include <vector>
 #include <SDL/SDL.h>
 
 enum xBox_STICK {
@@ -17,7 +18,7 @@ enum xBox_BUTTON {
 class XboxController {
 public:
     // empty constructor
-    XboxController(void) { }
+    XboxController(void);
 
     // cycle events on the xbox controller
     void update(void);
@@ -51,9 +52,10 @@ private:
     bool btn_L3 = false;
     bool btn_SELECT = false;
     bool btn_START  = false;
+
+    std::vector<SDL_Joystick*> joystick_ptr_vec;
 };
 
 // XboxControllerException
-
 
 #endif // __JJC__XBOXCONTROLLERINTERFACE__H__

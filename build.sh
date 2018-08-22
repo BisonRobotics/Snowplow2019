@@ -28,7 +28,7 @@ fi
 # =======================================
 
 # some command line args for g++
-STD_OPTS="-std=c++11 -march=native -O3 -Wall"
+STD_OPTS="-std=c++11 -march=native -O3 -Wall -lSDL"
 INC_OPTS="-I./inc/" # the default directory for headers in this project
 
 if [ $1 == --lib ] # build object code files
@@ -36,8 +36,8 @@ then
     echo "${YEL}  Building object (.o) files for linking..."
 
     # list of files that need to be compiled into object code
-    LINK_FILES=( "serial-interface" "XboxControllerInterface" )
-    
+    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteQ" )
+
     for i in "${LINK_FILES[@]}" # iterate through the files
     do
         echo "${CYN}    src/$i.cpp"
@@ -65,7 +65,12 @@ elif [ $1 == --bin ] # build executables
 then
     echo "${YEL}  Building executables..."
 
-    g++ src/main.cpp -o bin/main $STD_OPTS $INC_OPTS    
+    echo "${CYN}    src/main.cpp"
+    g++ src/main.cpp ./lib/RoboteQ.o ./lib/serial-interface.o -o bin/main $STD_OPTS $INC_OPTS
+
+    echo "${CYN}    test/xboxcontrol.cpp"
+    g++ test/xboxcontrol.cpp ./lib/RoboteQ.o ./lib/XboxControllerInterface.o \
+    ./lib/serial-interface.o -o bin/xboxcontrol $STD_OPTS $INC_OPTS
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then
@@ -74,10 +79,7 @@ then
     # remove everything in bin/ and lib/
     rm -rf bin/*
     rm -rf lib/*
-    
-fi 
 
-#echo "${MAG}  Building sample hello world..."
-#RESULT=`g++ src/main.cpp -o bin/main  $STD_OPTS $INC_OPTS`
+fi 
 
 # i never finish anythi
