@@ -4,7 +4,8 @@
 
 // compiler takes care of showing us where these are
 #include <XboxControllerInterface.h>
-#include <RoboteQ.h>
+#include <DriveTrain.h>
+// #include <.h>
 #include <misc.h> // mapFloat(), mapDouble()
 
 using namespace std;
@@ -17,7 +18,7 @@ int main(int argc, char* argv[]) {
     }
 
     XboxController xbox;
-    RoboteQInterface roboteq(argv[1]);
+    DriveTrain roboteq(argv[1]);
 
     // anything in this range is automatically set to zero
     roboteq.setWheelVelocityDeadZone(-100, 100);
@@ -41,8 +42,8 @@ int main(int argc, char* argv[]) {
         int mappedResultL = (int)mapFloat(inputL, -32768, 32767, -1000, 1000);
 
         // send the mapped value to the motor controller
-        roboteq.wheelVelocity(mappedResultR, RoboteQChannel_2, true, true);
-        roboteq.wheelVelocity(mappedResultL, RoboteQChannel_1, true, true);
+        roboteq.wheelVelocity(mappedResultR, RoboteqChannel_2, true, true);
+        roboteq.wheelVelocity(mappedResultL, RoboteqChannel_1, true, true);
 
         // test B-button for stop
         if(xbox.buttonPressed(xBox_B))

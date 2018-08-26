@@ -36,7 +36,7 @@ then
     echo "${YEL}  Building object (.o) files for linking..."
 
     # list of files that need to be compiled into object code
-    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteQ" )
+    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteqDevice" "DriveTrain" )
 
     for i in "${LINK_FILES[@]}" # iterate through the files
     do
@@ -66,19 +66,22 @@ then
     echo "${YEL}  Building executables..."
 
     echo "${CYN}    src/main.cpp"
-    g++ src/main.cpp ./lib/RoboteQ.o ./lib/serial-interface.o -o bin/main $STD_OPTS $INC_OPTS
+    g++ src/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o -o bin/main $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/xboxcontrol.cpp"
-    g++ test/xboxcontrol.cpp ./lib/RoboteQ.o ./lib/XboxControllerInterface.o \
+    g++ test/xboxcontrol.cpp ./lib/DriveTrain.o ./lib/XboxControllerInterface.o \
     ./lib/serial-interface.o -o bin/xboxcontrol $STD_OPTS $INC_OPTS
+
+    echo "${CYN} test/motorcontrollerTest.cpp"
+    g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o 
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then
     echo "${YEL}  Cleaning up the workspace..."
 
     # remove everything in bin/ and lib/
-    rm -rf bin/*
-    rm -rf lib/*
+    rm -r bin/*
+    rm -r lib/*
 
 fi 
 

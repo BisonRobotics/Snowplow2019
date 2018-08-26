@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 // VDC2450 motor controller
-#include <RoboteQ.h>
+#include <DriveTrain.h>
 
 using namespace std;
 
@@ -13,10 +13,10 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    RoboteQInterface rqi(argv[1]);
+    DriveTrain rqi(argv[1]);
 
     for(;;) {
-        rqi.wheelVelocity(100, RoboteQChannel_2);
+        rqi.wheelVelocity(100, RoboteqChannel_2);
         usleep(100000);
     }
 
