@@ -80,8 +80,8 @@ then
     echo "${YEL}  Cleaning up the workspace..."
 
     # remove everything in bin/ and lib/
-    rm -r bin/*
-    rm -r lib/*
+    rm -rf bin/*
+    rm -rf lib/*
 
 fi 
 
