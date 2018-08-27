@@ -8,6 +8,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 // #include <unistd.h>
 // #include <string.h>
 #include <ErrorCodes.h>
@@ -21,7 +22,7 @@ DriveTrain::DriveTrain(char* fileSer) {
 
     if(status != RQ_SUCCESS)
     {
-        std::cout<<"Error connecting to device: "<<status<<"."<<std::endl;
+        std::cout<<"Error connecting to device: "<<status<<". " << strerror(errno) <<std::endl;
         exit(1) ;
     }
 }
@@ -107,6 +108,6 @@ void DriveTrain::setWheelVelocityDeadZone(int lowerBound, int upperBound) {
     this->deadBandUpperBound = upperBound;
 }
 
-// void DriveTrain::disableMicroBasic(bool getReturn, bool echoCmd) {
-//     this->sendGenericCommand("^BRUN 0", getReturn, echoCmd);
-// }
+void DriveTrain::disableMicroBasic(bool getReturn, bool echoCmd) {
+    this->sendGenericCommand("^BRUN 0", getReturn, echoCmd);
+}

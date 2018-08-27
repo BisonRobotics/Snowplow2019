@@ -23,9 +23,9 @@ int main(int argc, char* argv[]) {
     // anything in this range is automatically set to zero
     roboteq.setWheelVelocityDeadZone(-100, 100);
 
-    cout << "Disabling MicroBasic script...";
-    roboteq.disableMicroBasic(true, true);
-    cout << "done\n";
+    // cout << "Disabling MicroBasic script...";
+    // roboteq.disableMicroBasic(true, true);
+    // cout << "done\n";
 
     cout << "Setting watchdog timer...";
     roboteq.setWatchdogTimer(0, true, true);

@@ -66,14 +66,14 @@ then
     echo "${YEL}  Building executables..."
 
     echo "${CYN}    src/main.cpp"
-    g++ src/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o -o bin/main $STD_OPTS $INC_OPTS
+    g++ test/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/RoboteqDevice.o -o bin/main $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/xboxcontrol.cpp"
-    g++ test/xboxcontrol.cpp ./lib/DriveTrain.o ./lib/XboxControllerInterface.o \
+    g++ test/xboxcontrol.cpp ./lib/DriveTrain.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
     ./lib/serial-interface.o -o bin/xboxcontrol $STD_OPTS $INC_OPTS
 
     echo "${CYN} test/motorcontrollerTest.cpp"
-    g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o 
+    g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o  ./lib/serial-interface.o ./lib/RoboteqDevice.o $STD_OPTS $INC_OPTS 
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then

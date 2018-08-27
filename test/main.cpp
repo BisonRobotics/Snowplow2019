@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     DriveTrain rqi(argv[1]);
 
     for(;;) {
-        rqi.wheelVelocity(100, RoboteqChannel_2);
+        rqi.wheelVelocity(1000, RoboteqChannel_2);
         usleep(100000);
     }
 
