@@ -36,7 +36,7 @@ then
     echo "${YEL}  Building object (.o) files for linking..."
 
     # list of files that need to be compiled into object code
-    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteqDevice" "DriveTrain" )
+    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteqDevice" "DriveTrain" "TCP_Connection" )
 
     for i in "${LINK_FILES[@]}" # iterate through the files
     do
