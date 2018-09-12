@@ -12,6 +12,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <stdint>
 
 TCP_Controller::TCP_Controller(void) {
     ;
@@ -32,8 +33,7 @@ void TCP_Controller::set_PortNumber(int port) {
     this->portnumSet = true;
 }
 
-void TCP_Controller::readSocket(char* buffer, int bufSize) {
-    //bzero(buffer, bufSize);
+int TCP_Controller::readSocket(char* buffer, int bufSize) {
     int n = read(this->sockfd, buffer, bufSize);
 
     if(n < 0) {
@@ -41,18 +41,19 @@ void TCP_Controller::readSocket(char* buffer, int bufSize) {
         std::cerr << "    code: " << errno << std::endl;
     }
 
+    return n;
 }
 
-std::vector<char> TCP_Controller::readUntil(uint8_t flag) {
-    std::vector<char> charBuf; // characters are simply stored here as they arrive
+void TCP_Controller::readUntil(uint8_t flag, std::vector<char>& buf) {
+    buf.clear();
     uint8_t c;
 
-    // this loop will eventually exit by returning a char vector
+    // this loop will eventually exit
     while(1) {
         read(this->sockfd, &c, 1);
         if(c == flag)
-            return charBuf;
-        charBuf.push_back((char)c);
+            return;
+        buf.push_back((char)c);
     }
 }
 

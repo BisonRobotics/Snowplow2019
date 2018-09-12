@@ -11,6 +11,7 @@
 
 #include <string>
 #include <vector>
+#include <stdint>
  
 #include <sys/ioctl.h>
 
@@ -32,11 +33,11 @@ public:
     // and store them in buffer, assumes buffer
     // will always have sufficient space
     // method zeroes buffer space before reading
-    void readSocket(char* buffer, int bufSize);
+    int readSocket(char* buffer, int bufSize);
 
     // read bytes until flag is encountered in stream
     // return as a single std vector
-    std::vector<char> readUntil(uint8_t flag);
+    void readUntil(uint8_t flag, std::vector<char> buf);
 
     // write number of bytes given by bufSize
     // to the socket. assumes the buffer is always full
