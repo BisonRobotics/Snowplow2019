@@ -84,9 +84,20 @@ bool SickSensor::scanData(void) {
         std::cout << &buffer[i] << std::endl;
     #endif
 
-    throw std::runtime_error("SickSensor::scanData : METHOD NOT FULLY DEFINED");
+    // we havent thrown an error by now, find the tokens we need
+    int data_index = -1;
+    for(int i = 0; i < buf_offset.size(); i++) {
+        if(strcmp(&buffer[i], "DIST1") == 0) {
+            data_index = i;
+            break;
+        }
+    }
 
-    // ...
+    if(data_index < 0)
+        // no DIST1 in token stream (this is ONLY for testing purposes)
+        throw std::runtime_error("SickSensor::scanData : UNABLE TO FIND 'DIST1' INDEX"); // this will prolly shutdown the system...bad idea
+
+    // is 1:08AM, good night...
 
     return true;
 }
