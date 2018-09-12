@@ -41,6 +41,8 @@ private:
     TCP_Controller tc;
 
     std::vector<float> _meas_results;
+    std::vector<char> _reply_buffer;
+    std::vector<int>  _offset_buffer;
 
     // generic send command method used to send ASCII
     // commands to SICK sensor
@@ -51,7 +53,11 @@ private:
     // user doesnt need to know the exact mechanism
     // by which the reply is parsed
     // this method simply reads until 0x03 is encountered
-    void readReply(std::vector<char>& buf);
+    void readReply(void);
+
+    // used by the scanData method to find indices of 
+    // different tokens in the response stream
+    void splitMessageData(void);
 
 public:
     // constructor, connection parameters

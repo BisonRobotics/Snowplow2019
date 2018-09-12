@@ -26,15 +26,7 @@ void SickSensor::setAccessMode(User user) {
     }
 }
 
-bool SickSensor::scanData(void) {
-    this->sendCmd("sRN LMDscandata");
-
-    // no point reallocating this every time
-    static std::vector<char> buffer;
-    static std::vector<int> buf_offset;
-    this->readReply(buffer); // readReply will clear() the buffer as needed
-    buf_offset.clear(); // prep for c-string comparison
-
+void SickSensor::splitMessageData(void) {
     // thank you Alan Turing
     const int STATE_default       = 0;
     const int STATE_token_start   = 1;
@@ -42,6 +34,9 @@ bool SickSensor::scanData(void) {
     const int STATE_space         = 3;
 
     int current_state = STATE_default;
+
+    std::vector<char>& buffer = this->_reply_buffer;
+    std::vector<int>&  buf_offset = this->_offset_buffer;
 
     // find individual tokens
     // this was done after a few brews...
@@ -51,7 +46,7 @@ bool SickSensor::scanData(void) {
                 if(buffer[i] == ' ') {
                     current_state = STATE_space;
                 } else {
-                    current_state = STATE_token;
+                    current_state = STATE_token_start;
                 }
                 break;
 
@@ -77,6 +72,18 @@ bool SickSensor::scanData(void) {
                 throw std::runtime_error("SickSensor::scanData : UNKNOWN STATE");
         }
     }
+}
+
+bool SickSensor::scanData(void) {
+    this->sendCmd("sRN LMDscandata");
+    this->readReply();
+
+    // need one more space for token splitting method
+    this->_reply_buffer.push_back(' ');    
+    this->splitMessageData();
+
+    std::vector<char>& buffer    = this->_reply_buffer;
+    std::vector<int>& buf_offset = this->_offset_buffer;
 
     // some debug info if needed
     #ifdef __DEBUG_SCANDATA__
@@ -87,17 +94,16 @@ bool SickSensor::scanData(void) {
     // we havent thrown an error by now, find the tokens we need
     int data_index = -1;
     for(int i = 0; i < buf_offset.size(); i++) {
-        if(strcmp(&buffer[i], "DIST1") == 0) {
+        if(strcmp(&buffer[buf_offset[i]], "DIST1") == 0) {
             data_index = i;
             break;
         }
     }
 
     if(data_index < 0)
-        // no DIST1 in token stream (this is ONLY for testing purposes)
-        throw std::runtime_error("SickSensor::scanData : UNABLE TO FIND 'DIST1' INDEX"); // this will prolly shutdown the system...bad idea
+        return false; // no DIST1 token, quit
 
-    // is 1:08AM, good night...
+        
 
     return true;
 }
@@ -116,17 +122,17 @@ void SickSensor::sendCmd(std::string cmd) {
     this->tc.writeSocket(&etx, 1);
 }
 
-bool SickSensor::readReply(std::vector<char>& buf) {
+bool SickSensor::readReply(void) {
     char tmp = '\0';
     this->tc.readBuffer(&tmp, 1);
     
     if(tmp != 0x02) {
         std::cerr << "STX NOT FOUND...\n";
-        return;
+        return false;
     }
 
     // start transmission found
-    buf.clear(); // make space
+    this->_reply_buffer.clear();
 
     while(1) {
         char c_buf[64];
@@ -134,9 +140,13 @@ bool SickSensor::readReply(std::vector<char>& buf) {
 
         for(int i = 0; i < n; i++) {
             if(c_buf[i] == 0x03)
-                return;
-            buf.push_back(c_buf[i]); // fill the buffer until ETX is found
+                return true;
+            this->_reply_buffer.push_back(c_buf[i]); // fill the buffer until ETX is found
         }
+
+        // max size of the return buffer
+        if(_reply_buffer.size() > 10000)
+            return false; // too many chars, something went wrong
     }
 
 }
