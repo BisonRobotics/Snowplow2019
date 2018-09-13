@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <algorithm>
 
 #include <SICK_Sensor.h>
 
@@ -131,8 +132,6 @@ bool SickSensor::scanData(void) {
     if(data_index < 0)
         return false; // no DIST1 token, quit
 
-    
-
     return true;
 }
 
@@ -156,11 +155,23 @@ bool SickSensor::scanData(const char* filename) {
     this->splitMessageData();
     this->_meas_results.clear();
 
-    for(int i : this->_offset_buffer) {
-        std::cout << &_reply_buffer[i] << std::endl;
+    close(fd); // we no longer need the file
+
+    for(int i = 0; i < this->_offset_buffer.size(); i++) {
+
+        int index = _offset_buffer[i];
+
+        if(strcmp(&_reply_buffer[index], "DIST1") == 0) {
+            std::cout << "DIST1 index: " << index << std::endl;
+
+            // print the next few ints
+            for(int j = 0; j < 20; j++)
+                std::cout << hexStrToInt(&this->_reply_buffer[_offset_buffer[i+j+1]]) << "    "
+                << std::stol(&_reply_buffer[_offset_buffer[i+j+1]], 0, 16) << std::endl;
+            return true;
+        }
     }
 
-    close(fd);
     return true;
 }
 
@@ -210,21 +221,28 @@ bool SickSensor::readReply(void) {
 int64_t SickSensor::hexStrToInt(char* str) {
     // lambdas ftw
     auto hexLookup = [](char c) -> int {
-        if(c >= 48 && c <= 57)
-            return (c - 48); // digits 0-9
-        else if(c >= 65 && c <= 70)
-            return (c - 65); // uppercase A-F
-        else if(c >= 97 && c <= 102)
-            return (c-97); // lowercase a-f
+        if(c >= '0' && c <= '9')
+            return (c - '0'); // digits 0-9
+        else if(c >= 'A' && c <= 'F')
+            return (c - 'A' + 10); // uppercase A-F
+        else if(c >= 'a' && c <= 'f')
+            return (c-'a' + 10); // lowercase a-f
         else
-            return -1;
+            std::cerr << "UNKNOWN CHAR IN SickSensor::hexStrToInt()\n";
+            return 0;
     };
+
+    std::vector<char> vec_str;
+    for(int i = 0; str[i]; i++)
+        vec_str.push_back(str[i]);
+    std::reverse(vec_str.begin(), vec_str.end());
+    vec_str.push_back('\0');
 
     // build up the hex number 4 bits at a time
     int64_t r = 0L;
 
-    for(int index = 0; str[index]; index++) {
-        int64_t tmp = hexLookup(str[index]) & 0x0F;
+    for(int index = 0; vec_str[index]; index++) {
+        int64_t tmp = hexLookup(vec_str[index]) & 15L;
         tmp <<= (index * 4);
         r |= tmp;
     }
