@@ -59,11 +59,16 @@ private:
     // different tokens in the response stream
     void splitMessageData(void);
 
+    // produces a large integer suitable for use in 
+    // converting to other ints, float, or doubles. 
+    // assumes c-string is in hex format
+    int64_t hexStrToInt(char* s);
+
 public:
     // constructor, connection parameters
     // have defaults. unless you have multiple
-    // SICK sensors, the default are fine
-    SickSensor(std::string IP = "192.168.0.1", int port_n = 2111); // default parameters
+    // SICK sensors, the defaults are fine
+    SickSensor(std::string IP = "192.168.0.1", int port_n = 2111, bool init = true); // default parameters
 
     // setting different access modes allows you 
     // to set different parameters on the SICK sensor
@@ -74,6 +79,11 @@ public:
     // store results (floats)
     // returns whether method was able to parse out results
     bool scanData(void);
+
+    // FOR TESTING PURPOSES ONLY!!!!!!!
+    // opens an existing file and treats it like it came from 
+    // the SICK sensor
+    bool scanData(const char* filename);
 
     // retrieve the results from most recent measurement
     // requires some additional input from programmer
