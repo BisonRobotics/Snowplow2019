@@ -1,8 +1,28 @@
-#include <SICK_Sensor.h>
 #include <stdexcept>
 #include <string>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+
+#include <SICK_Sensor.h>
 
 #define __DEBUG_SCANDATA__
+
+std::ostream& operator<<(std::ostream& os, User u) {
+    switch(u) {
+        case User::MAINTENANCE:
+            os << "User::MAINTENANCE";
+            break;
+        case User::CLIENT:
+            os << "User::CLIENT";
+            break;
+        case User::SERVICE:
+            os << "User::SERVICE";
+            break;
+    }
+    return os;
+}
 
 SickSensor::SickSensor(std::string IP, int port_n, bool init) {
     if(!init)
@@ -29,57 +49,57 @@ void SickSensor::setAccessMode(User user) {
     }
 }
 
-void SickSensor::splitMessageData(void) {
-    // thank you Alan Turing
-    const int STATE_default       = 0;
-    const int STATE_token_start   = 1;
-    const int STATE_token         = 2;
-    const int STATE_space         = 3;
+bool SickSensor::splitMessageData(void) {
+    // Thank you Alan Turing
+    const int STATE_default     = 0;
+    const int STATE_space       = 1;
+    const int STATE_token_start = 2;
+    const int STATE_token_body  = 3;
 
     int current_state = STATE_default;
 
-    std::vector<char>& buffer = this->_reply_buffer;
-    std::vector<int>&  buf_offset = this->_offset_buffer;
-    buf_offset.clear();
+    for(int i = 0; i < _reply_buffer.size();) {
 
-    // find individual tokens
-    // this was done after a few brews...
-    for(int i = 0; i < buffer.size();) { // dont advance automatically
         switch(current_state) {
             case STATE_default:
-                if(buffer[i] == ' ') {
+                if(_reply_buffer[i] == ' ') {
                     current_state = STATE_space;
                 } else {
                     current_state = STATE_token_start;
                 }
                 break;
 
-            case STATE_token_start:
-                buf_offset.push_back(i); // there is a string here
-                i++;
-                break;
-
-            case STATE_token: // find the end of the string
-                if(buffer[i] == ' ') {
-                    current_state = STATE_space;
-                else
+            case STATE_space:
+                // advance until next char
+                if(_reply_buffer[i] == ' ') {
+                    _reply_buffer[i] = '\0';
                     i++;
+                } else {
+                    current_state = STATE_token_start;
+                }
                 break;
 
-            case STATE_space: // replace spaces and advance the char ptr
-                if(buffer[i] == ' ') {
-                    buffer[i] = '\0';
-                } else {
-                    current_state = STATE_default; // stay in this state until char is found
-                }
-
+            case STATE_token_start:
+                _offset_buffer.push_back(i); // save index of this token
+                current_state = STATE_token_body;
                 i++;
+                break;
+                
+            case STATE_token_body:
+                if(_reply_buffer[i] == ' ') {
+                    current_state = STATE_space;
+                } else {
+                    i++; // advance until next space appears
+                }
                 break;
 
             default:
-                throw std::runtime_error("SickSensor::scanData : UNKNOWN STATE");
+                return false;
         }
+
     }
+
+    return true;
 }
 
 bool SickSensor::scanData(void) {
@@ -116,13 +136,7 @@ bool SickSensor::scanData(void) {
     return true;
 }
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-#include <errno.h>
-#include <strerror.h>
-
+// this method is only used for testin purposes
 bool SickSensor::scanData(const char* filename) {
     int fd = open(filename, O_RDONLY);
 
@@ -135,7 +149,7 @@ bool SickSensor::scanData(const char* filename) {
 
     int n = read(fd, buf, 1024*4);
     this->_reply_buffer.clear();
-    for(int i = 1; i < (n-2); i++)
+    for(int i = 1; i < (n-1); i++)
         this->_reply_buffer.push_back(buf[i]);
     this->_reply_buffer.push_back(' ');
 
@@ -143,9 +157,8 @@ bool SickSensor::scanData(const char* filename) {
     this->_meas_results.clear();
 
     for(int i : this->_offset_buffer) {
-        std::cout << ""
+        std::cout << &_reply_buffer[i] << std::endl;
     }
-
 
     close(fd);
     return true;
@@ -167,7 +180,7 @@ void SickSensor::sendCmd(std::string cmd) {
 
 bool SickSensor::readReply(void) {
     char tmp = '\0';
-    this->tc.readBuffer(&tmp, 1);
+    this->tc.readSocket(&tmp, 1);
     
     if(tmp != 0x02) {
         std::cerr << "STX NOT FOUND...\n";
@@ -179,7 +192,7 @@ bool SickSensor::readReply(void) {
 
     while(1) {
         char c_buf[64];
-        int n = tc.readBuffer(c_buf, 64);
+        int n = tc.readSocket(c_buf, 64);
 
         for(int i = 0; i < n; i++) {
             if(c_buf[i] == 0x03)
@@ -195,6 +208,7 @@ bool SickSensor::readReply(void) {
 }
 
 int64_t SickSensor::hexStrToInt(char* str) {
+    // lambdas ftw
     auto hexLookup = [](char c) -> int {
         if(c >= 48 && c <= 57)
             return (c - 48); // digits 0-9
@@ -204,8 +218,9 @@ int64_t SickSensor::hexStrToInt(char* str) {
             return (c-97); // lowercase a-f
         else
             return -1;
-    }
+    };
 
+    // build up the hex number 4 bits at a time
     int64_t r = 0L;
 
     for(int index = 0; str[index]; index++) {

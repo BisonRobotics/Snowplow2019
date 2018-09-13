@@ -12,7 +12,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
-#include <stdint>
+#include <stdint.h>
 
 TCP_Controller::TCP_Controller(void) {
     ;
@@ -46,23 +46,25 @@ int TCP_Controller::readSocket(char* buffer, int bufSize) {
 
 void TCP_Controller::readUntil(uint8_t flag, std::vector<char>& buf) {
     buf.clear();
-    uint8_t c;
+    uint8_t c = 0x00;
 
     // this loop will eventually exit
     while(1) {
-        read(this->sockfd, &c, 1);
+        if(read(this->sockfd, &c, 1) == 0)
+            return;
+
         if(c == flag)
             return;
         buf.push_back((char)c);
     }
 }
 
-void TCP_Controller::writeSocket(std::string buffer) {
-    write(this->sockfd, buffer.c_str(), buffer.size());
+int TCP_Controller::writeSocket(std::string buffer) {
+    return write(this->sockfd, buffer.c_str(), buffer.size());
 }
 
-void TCP_Controller::writeSocket(char* buffer, int bufSize) {
-    write(this->sockfd, buffer, bufSize);
+int TCP_Controller::writeSocket(char* buffer, int bufSize) {
+    return write(this->sockfd, buffer, bufSize);
 }
 
 void TCP_Controller::start(void) {

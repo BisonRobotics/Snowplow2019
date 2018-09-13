@@ -11,7 +11,7 @@
 
 #include <string>
 #include <vector>
-#include <stdint>
+#include <stdint.h>
  
 #include <sys/ioctl.h>
 
@@ -37,20 +37,21 @@ public:
 
     // read bytes until flag is encountered in stream
     // return as a single std vector
-    void readUntil(uint8_t flag, std::vector<char> buf);
+    void readUntil(uint8_t flag, std::vector<char>& buf);
 
     // write number of bytes given by bufSize
     // to the socket. assumes the buffer is always full
-    void writeSocket(char* buffer, int bufSize);
+    int writeSocket(char* buffer, int bufSize);
 
     // write the contents of the string to the socket
     // size is given by the string itself
-    void writeSocket(std::string buffer);
+    int writeSocket(std::string buffer);
 
     // initialize socket with information given
     // opens a streaming, persistant tcp connection
     void start(void);
 
+    // these two methods dont work... sadness
     void setBlocking(void) {
         int i = 0;
         ioctl(sockfd, FIONBIO, &i);

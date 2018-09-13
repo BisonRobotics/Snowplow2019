@@ -13,7 +13,7 @@ struct XY {
 // convenience typedef simplifies polar coordinates
 // turned to cartesian by SickSensor class
 typedef XY cart_t; // very similar to std::pair, nicer names for our purposes
-typedef std::vector<XY> CartVec;
+typedef std::vector<cart_t> CartVec;
 
 enum class User : int {
     MAINTENANCE = 0,
@@ -21,20 +21,7 @@ enum class User : int {
     SERVICE = 2
 };
 
-std::ostream& operator<<(std::ostream& os, User u) {
-    switch(u) {
-        case User::MAINTENANCE:
-            os << "User::MAINTENANCE";
-            break;
-        case User::CLIENT:
-            os << "User::CLIENT";
-            break;
-        case User::SERVICE:
-            os << "User::SERVICE";
-            break;
-    }
-    return os;
-}
+std::ostream& operator<<(std::ostream& os, User u);
 
 class SickSensor {
 private:
@@ -53,11 +40,11 @@ private:
     // user doesnt need to know the exact mechanism
     // by which the reply is parsed
     // this method simply reads until 0x03 is encountered
-    void readReply(void);
+    bool readReply(void);
 
     // used by the scanData method to find indices of 
     // different tokens in the response stream
-    void splitMessageData(void);
+    bool splitMessageData(void);
 
     // produces a large integer suitable for use in 
     // converting to other ints, float, or doubles. 
@@ -91,7 +78,7 @@ public:
 
     // converts the most recent results to cartesian coordinates
     // user needs to provide an existing CartVec object
-    auto getMeasurementResultsAsCartesian(CartVec& cv);
+    auto getMeasurementResultsAsCartesian(CartVec& cv) -> void;
 
 };
 
