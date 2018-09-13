@@ -232,23 +232,18 @@ int64_t SickSensor::hexStrToInt(char* str) {
             return 0;
     };
 
-    std::vector<char> vec_str;
-    for(int i = 0; str[i]; i++)
-        vec_str.push_back(str[i]);
-    std::reverse(vec_str.begin(), vec_str.end());
-    vec_str.push_back('\0');
+    int strL = strlen(str);
 
     // build up the hex number 4 bits at a time
     int64_t r = 0L;
 
-    for(int index = 0; vec_str[index]; index++) {
-        int64_t tmp = hexLookup(vec_str[index]) & 15L;
-        tmp <<= (index * 4);
+    for(int index = strL-1; index >= 0; index--) {
+        int64_t tmp = hexLookup(str[index]) & 15L;
+        tmp <<= ((strL-(index+1)) * 4);
         r |= tmp;
     }
 
     return r;
-
 }
 
 // welcome to the Mystery Machine
