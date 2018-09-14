@@ -1,10 +1,20 @@
 #ifndef __JJC__SICK__SENSOR__H__
 #define __JJC__SICK__SENSOR__H__
 
+// TESTING PURPOSES
+// comment out to suppress UI display of data
+#define USE_SDL_DISPLAY
+
 #include <string>
 #include <vector>
 #include <iostream>
+#include <stdint.h>
+#include <math.h>
 #include <TCP_Connection.h>
+
+#ifdef USE_SDL_DISPLAY
+#include <SDL/SDL.h>
+#endif // USE_SDL_DISPLAY
 
 struct XY {
     float x, y;
@@ -21,6 +31,7 @@ enum class User : int {
     SERVICE = 2
 };
 
+// forward decl
 std::ostream& operator<<(std::ostream& os, User u);
 
 class SickSensor {
@@ -30,6 +41,7 @@ private:
     std::vector<float> _meas_results;
     std::vector<char> _reply_buffer;
     std::vector<int>  _offset_buffer;
+    std::vector<cart_t> _cart_meas_results_; // empty unless user explicitly asks for it
 
     // generic send command method used to send ASCII
     // commands to SICK sensor
@@ -50,6 +62,11 @@ private:
     // converting to other ints, float, or doubles. 
     // assumes c-string is in hex format
     int64_t hexStrToInt(char* s);
+
+    // convenience method to turn the list of c-strings 
+    // into float data internally. returns false if data 
+    // is not in correct format, true otherwise
+    bool scanDataToFloat(void);
 
 public:
     // constructor, connection parameters
@@ -78,7 +95,7 @@ public:
 
     // converts the most recent results to cartesian coordinates
     // user needs to provide an existing CartVec object
-    auto getMeasurementResultsAsCartesian(CartVec& cv) -> void;
+    auto getMeasurementResultsAsCartesian(void) -> std::vector<cart_t>&;
 
 };
 

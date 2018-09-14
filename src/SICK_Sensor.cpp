@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <algorithm>
+#include <stdint.h>
 
 #include <SICK_Sensor.h>
 
@@ -111,31 +112,19 @@ bool SickSensor::scanData(void) {
     this->_reply_buffer.push_back(' ');    
     this->splitMessageData();
 
-    std::vector<char>& buffer    = this->_reply_buffer;
-    std::vector<int>& buf_offset = this->_offset_buffer;
-
     // some debug info if needed
     #ifdef __DEBUG_SCANDATA__
-    for(int i : buf_offset)
-        std::cout << &buffer[i] << std::endl;
+    for(int i : this->_offset_buffer)
+        std::cout << &this->_reply_buffer[i] << std::endl;
     #endif
 
-    // we havent thrown an error by now, find the tokens we need
-    int data_index = -1;
-    for(int i = 0; i < buf_offset.size(); i++) {
-        if(strcmp(&buffer[buf_offset[i]], "DIST1") == 0) {
-            data_index = i;
-            break;
-        }
-    }
-
-    if(data_index < 0)
-        return false; // no DIST1 token, quit
+    if(this->scanDataToFloat() == false)
+        return false;
 
     return true;
 }
 
-// this method is only used for testin purposes
+// this method is only used for testing purposes
 bool SickSensor::scanData(const char* filename) {
     int fd = open(filename, O_RDONLY);
 
@@ -153,24 +142,11 @@ bool SickSensor::scanData(const char* filename) {
     this->_reply_buffer.push_back(' ');
 
     this->splitMessageData();
-    this->_meas_results.clear();
 
     close(fd); // we no longer need the file
 
-    for(int i = 0; i < this->_offset_buffer.size(); i++) {
-
-        int index = _offset_buffer[i];
-
-        if(strcmp(&_reply_buffer[index], "DIST1") == 0) {
-            std::cout << "DIST1 index: " << index << std::endl;
-
-            // print the next few ints
-            for(int j = 0; j < 20; j++)
-                std::cout << hexStrToInt(&this->_reply_buffer[_offset_buffer[i+j+1]]) << "    "
-                << std::stol(&_reply_buffer[_offset_buffer[i+j+1]], 0, 16) << std::endl;
-            return true;
-        }
-    }
+    if(this->scanDataToFloat() == false)
+        return false;
 
     return true;
 }
@@ -234,7 +210,7 @@ int64_t SickSensor::hexStrToInt(char* str) {
 
     int strL = strlen(str);
 
-    // build up the hex number 4 bits at a time
+    // build up the binary number 4 bits at a time
     int64_t r = 0L;
 
     for(int index = strL-1; index >= 0; index--) {
@@ -244,6 +220,48 @@ int64_t SickSensor::hexStrToInt(char* str) {
     }
 
     return r;
+}
+
+bool SickSensor::scanDataToFloat(void) {
+    int dist1_index = -1;
+    int num_readings = -1;
+
+    for(int i = 0; i < this->_offset_buffer.size(); i++) {
+        if(strcmp(&_reply_buffer[_offset_buffer[i]], "DIST1") == 0) {
+            dist1_index = i;
+            num_readings = (int)hexStrToInt(&_reply_buffer[_offset_buffer[i+5]]);
+            break;
+        }
+    }
+
+    if(dist1_index == -1 || num_readings < 0) { // should be found by above loop
+        return false;
+    }
+
+    // DIST1 found, read the actual data
+    for(int i = 0; i < num_readings; i++) {
+        float val = (float)hexStrToInt(&_reply_buffer[_offset_buffer[i+dist1_index+5]]);
+        _meas_results.push_back(val);
+    }
+
+    return true;
+}
+
+auto SickSensor::getMeasurementResults(void) -> std::vector<float>& {
+    return this->_meas_results;
+}
+
+auto SickSensor::getMeasurementResultsAsCartesian(void) -> std::vector<cart_t>& {
+    this->_cart_meas_results_.clear();
+
+    for(int i = 0; i < this->_meas_results.size(); i++) {
+        float ang = float(i-90) * 0.00872665f; // theres that magic number again
+        float x = ang * cos(_meas_results[i]);
+        float y = ang * sin(_meas_results[i]);
+        this->_cart_meas_results_.push_back({x, y});
+    }
+
+    return this->_cart_meas_results_;
 }
 
 // welcome to the Mystery Machine
