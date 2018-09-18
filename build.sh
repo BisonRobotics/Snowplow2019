@@ -36,7 +36,8 @@ then
     echo "${YEL}  Building object (.o) files for linking..."
 
     # list of files that need to be compiled into object code
-    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteqDevice" "DriveTrain" )
+    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteqDevice" \
+    "DriveTrain" "TCP_Connection" "SICK_Sensor" )
 
     for i in "${LINK_FILES[@]}" # iterate through the files
     do
@@ -65,15 +66,21 @@ elif [ $1 == --bin ] # build executables
 then
     echo "${YEL}  Building executables..."
 
-    echo "${CYN}    src/main.cpp"
-    g++ test/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/RoboteqDevice.o -o bin/main $STD_OPTS $INC_OPTS
+    echo "${CYN}    test/main.cpp"
+    g++ test/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/RoboteqDevice.o -o bin/main \
+    $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/xboxcontrol.cpp"
     g++ test/xboxcontrol.cpp ./lib/DriveTrain.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
     ./lib/serial-interface.o -o bin/xboxcontrol $STD_OPTS $INC_OPTS
 
-    echo "${CYN} test/motorcontrollerTest.cpp"
-    g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o  ./lib/serial-interface.o ./lib/RoboteqDevice.o $STD_OPTS $INC_OPTS 
+    echo "${CYN}    test/motorcontrollerTest.cpp"
+    g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o  ./lib/serial-interface.o ./lib/RoboteqDevice.o \
+    -o bin/motorcontrollerTest $STD_OPTS $INC_OPTS 
+
+    echo "${CYN}    test/sicksensormsgsplit.cpp"
+    g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit \
+     $STD_OPTS $INC_OPTS
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then
