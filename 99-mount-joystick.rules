@@ -1,0 +1,1 @@
+SUBSYSTEM=="input", ATTRS{idVendor}=="24c6", ATTRS{idProduct}=="fafc", SYMLINK+="xboxjoystick"
