@@ -57,15 +57,15 @@ int main(int argc, char* argv[]) {
         }
 
         if (xbox.buttonPressed(xBox_A)){
-            if((status = plow.SetCommand(_G, 2, plowSpeed)) != RQ_SUCCESS){
+            if((status = plow.SetCommand(_G, 1, plowSpeed)) != RQ_SUCCESS){
                 std::cout<<"failed --> "<<status<<std::endl;
             }
         }else if(xbox.buttonPressed(xBox_X)){
-            if((status = plow.SetCommand(_G, 2, -plowSpeed)) != RQ_SUCCESS){
+            if((status = plow.SetCommand(_G, 1, -plowSpeed)) != RQ_SUCCESS){
                 std::cout<<"failed --> "<<status<<std::endl;
             }
         }else{
-            if((status = plow.SetCommand(_G, 2, 0)) != RQ_SUCCESS){
+            if((status = plow.SetCommand(_G, 1, 0)) != RQ_SUCCESS){
                 std::cout<<"failed --> "<<status<<std::endl;
             }
         }
