@@ -13,6 +13,7 @@ print_command_line_opts()
     echo "${RED}  Options:"
     echo "    --lib   : (re)build all of the .o files needed for linking libraries"
     echo "    --bin   : (re)build all of the c++ executables (test files and final executable)"
+    echo "    --vn    : (re)build all of the VectorNav libraries"
     echo "    --clean : remove all non-source/header files (.o .bin .exe)${RST}"
 }
 
@@ -62,6 +63,23 @@ then
         fi
 
     done
+
+elif [ $1 == --vn ]
+then
+
+    echo "${YEL}  Building VectorNav libraries..."
+
+    VNFILES=( `ls ./src/vn/` )
+    echo "    files:${CYN}"
+
+    for i in "${VNFILES[@]}"
+    do
+        SRC=${i%????}
+        echo "      Compiling $i"
+        #echo "        lib/$SRC.o"
+        g++ -c -o ./lib/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+    done
+
 elif [ $1 == --bin ] # build executables
 then
     echo "${YEL}  Building executables..."
