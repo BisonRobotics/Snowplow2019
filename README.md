@@ -22,3 +22,12 @@
 
 username: thundar
 password: password
+
+### Remote login
+
+connect to hide yo kids, hide you Wifi network
+
+ssh into either 192.168.1.100 or 192.168.1.101 with the credentials above
+
+- use ssh to start VNC
+    - `vnc server`
