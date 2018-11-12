@@ -17,7 +17,14 @@
 `sh build.sh --lib`
 
 `sh build.sh --bin`
+### Adding udev rules
 
+    add udev files to:
+    /etc/udev/rules.d
+    reset the udev rules using:
+    sudo udevadm control --reload-rules
+
+    
 
 ### Computer login 
 
