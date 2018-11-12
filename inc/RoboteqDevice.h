@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include <RoboteqDevice.h>
+// #include <RoboteqDevice.h>
 #include <ErrorCodes.h>
 #include <Constants.h>
 

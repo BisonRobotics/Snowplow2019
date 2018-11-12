@@ -13,6 +13,7 @@ print_command_line_opts()
     echo "${RED}  Options:"
     echo "    --lib   : (re)build all of the .o files needed for linking libraries"
     echo "    --bin   : (re)build all of the c++ executables (test files and final executable)"
+    echo "    --vn    : (re)build all of the VectorNav libraries"
     echo "    --clean : remove all non-source/header files (.o .bin .exe)${RST}"
 }
 
@@ -62,6 +63,23 @@ then
         fi
 
     done
+
+elif [ $1 == --vn ]
+then
+
+    echo "${YEL}  Building VectorNav libraries..."
+
+    VNFILES=( `ls ./src/vn/` )
+    echo "    files:${CYN}"
+
+    for i in "${VNFILES[@]}"
+    do
+        SRC=${i%????}
+        echo "      Compiling $i"
+        #echo "        lib/$SRC.o"
+        g++ -c -o ./lib/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+    done
+
 elif [ $1 == --bin ] # build executables
 then
     echo "${YEL}  Building executables..."
@@ -76,11 +94,16 @@ then
 
     echo "${CYN}    test/motorcontrollerTest.cpp"
     g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o  ./lib/serial-interface.o ./lib/RoboteqDevice.o \
-    -o bin/motorcontrollerTest $STD_OPTS $INC_OPTS 
+    -o bin/motorcontrollerTest $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/sicksensormsgsplit.cpp"
     g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit \
-     $STD_OPTS $INC_OPTS
+    $STD_OPTS $INC_OPTS
+
+    echo "${CYN}  app/teleop"
+    g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
+    -o bin/teleop $STD_OPTS $INC_OPTS
+
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then
@@ -90,6 +113,6 @@ then
     rm -rf bin/*
     rm -rf lib/*
 
-fi 
+fi
 
 # i never finish anythi
