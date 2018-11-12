@@ -14,9 +14,9 @@
 
 ### building 
 
-`sh build.sh --lib`
+`bash build.sh --lib`
 
-`sh build.sh --bin`
+`bash build.sh --bin`
 
 
 ### Computer login 
