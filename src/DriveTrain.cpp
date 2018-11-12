@@ -9,8 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-// #include <unistd.h>
-// #include <string.h>
 #include <ErrorCodes.h>
 #include <Constants.h>
 
@@ -92,7 +90,7 @@ void DriveTrain::sendGenericCommand(std::string cmd, bool getReturn, bool echoCm
         for(int i = 0; i < 1024; i++)
             buf[i] = '\0'; // NULL
 
-        mainSC.readBuffer(buf, 1023);        
+        mainSC.readBuffer(buf, 1023);
         std::cout << "Response: " << buf << std::endl;
     }
 
