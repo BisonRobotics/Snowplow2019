@@ -141,11 +141,16 @@ then
 
     echo "${CYN}    test/motorcontrollerTest.cpp"
     g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o  ./lib/serial-interface.o ./lib/RoboteqDevice.o \
-    -o bin/motorcontrollerTest $STD_OPTS $INC_OPTS 
+    -o bin/motorcontrollerTest $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/sicksensormsgsplit.cpp"
     g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit \
-     $STD_OPTS $INC_OPTS
+    $STD_OPTS $INC_OPTS
+
+    echo "${CYN}  app/teleop"
+    g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
+    -o bin/teleop $STD_OPTS $INC_OPTS
+
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then
@@ -157,6 +162,6 @@ then
     rmdir bin
     rmdir lib
 
-fi 
+fi
 
 # i never finish anythi
