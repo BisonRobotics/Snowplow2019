@@ -46,7 +46,18 @@ INC_OPTS="-I./inc/" # the default directory for headers in this project
 
 if [ $1 == --all ]
 then
+    printf "This will delete all existing binaries. Are you sure you want to continue [y/n] "
+    read -n1 reply
+    echo ""
+
+    if [ "$reply" != "y" ] && [ "$reply" != "Y" ]
+    then
+        echo "Exiting..."
+        exit 128
+    fi
+
     echo "${YEL}  Building everything..."
+
     bash build.sh --clean
     bash build.sh --lib
     bash build.sh --vn
