@@ -2,3 +2,6 @@
 *.o
 ./bin/*
 ./lib/*
+
+*.out
+*.exe
