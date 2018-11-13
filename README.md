@@ -19,9 +19,12 @@
 
 ### Adding udev rules
 
-    add udev files to:
-    /etc/udev/rules.d
-    reset the udev rules using:
+- add udev files to:
+
+    `/etc/udev/rules.d`
+    
+- reset the udev rules using:
+
     `sudo udevadm control --reload-rules`
 
 ### Computer login
