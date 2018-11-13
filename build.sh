@@ -11,6 +11,7 @@ RST=`tput sgr0`
 print_command_line_opts()
 {
     echo "${RED}  Options:"
+    echo "    --all   : perform all of the steps below"
     echo "    --lib   : (re)build all of the .o files needed for linking libraries, but no VN libs"
     echo "    --bin   : (re)build all of the c++ executables (test files only)"
     echo "    --vn    : (re)build all of the VectorNav libraries"
@@ -43,7 +44,16 @@ done
 STD_OPTS="-std=c++11 -march=native -O3 -Wall -lSDL"
 INC_OPTS="-I./inc/" # the default directory for headers in this project
 
-if [ $1 == --lib ] # build object code files
+if [ $1 == --all ]
+then
+    echo "${YEL}  Building everything..."
+    bash build.sh --clean
+    bash build.sh --lib
+    bash build.sh --vn
+    bash build.sh --bin
+    bash build.sh --nodes
+
+elif [ $1 == --lib ] # build object code files
 then
     echo "${YEL}  Building object (.o) files for linking..."
 
@@ -85,7 +95,7 @@ then
         if [ -d ./nodes/$folder ]
         then
             # this is a directory, assume it contains a project node
-            echo "${RED}  Compiling ./nodes/$folder ${RST}"
+            echo "${YEL}  Compiling ./nodes/$folder ${RST}"
             cd ./nodes/$folder && bash build.sh
             cd ../..
         fi
