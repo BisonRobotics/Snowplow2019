@@ -11,9 +11,10 @@ RST=`tput sgr0`
 print_command_line_opts()
 {
     echo "${RED}  Options:"
-    echo "    --lib   : (re)build all of the .o files needed for linking libraries"
-    echo "    --bin   : (re)build all of the c++ executables (test files and final executable)"
+    echo "    --lib   : (re)build all of the .o files needed for linking libraries, but no VN libs"
+    echo "    --bin   : (re)build all of the c++ executables (test files only)"
     echo "    --vn    : (re)build all of the VectorNav libraries"
+    echo "    --nodes : (re)build all of the nodes for the final program"
     echo "    --clean : remove all non-source/header files (.o .bin .exe)${RST}"
 }
 
@@ -28,6 +29,16 @@ fi
 # HERE BE DRAGONS
 # =======================================
 
+# create certain folders if they dont exist
+FOLDERS=( "lib" "bin" )
+for foldername in "${FOLDERS[@]}"
+do
+    if [ ! -d $foldername ]; then
+        echo "${MAG}Creating directory '$foldername'"
+        mkdir $foldername
+    fi
+done
+
 # some command line args for g++
 STD_OPTS="-std=c++11 -march=native -O3 -Wall -lSDL"
 INC_OPTS="-I./inc/" # the default directory for headers in this project
@@ -36,32 +47,48 @@ if [ $1 == --lib ] # build object code files
 then
     echo "${YEL}  Building object (.o) files for linking..."
 
-    # list of files that need to be compiled into object code
-    LINK_FILES=( "serial-interface" "XboxControllerInterface" "RoboteqDevice" \
-    "DriveTrain" "TCP_Connection" "SICK_Sensor" )
-
-    for i in "${LINK_FILES[@]}" # iterate through the files
+    LINK_FILES=( `ls ./src` )
+    for fname in "${LINK_FILES[@]}" # iterate through the files
     do
-        echo "${CYN}    src/$i.cpp"
-        SRC="src/$i.cpp"
-        LIB="lib/$i.o"
-
-        STAT_SRC=`stat -c %Y $SRC`
-        STAT_OUT=0
-
-        if [ -e $LIB ] # make sure the .o file exists before testing it with stat
+        if [ -f "./src/$fname" ]
         then
-            STAT_OUT=`stat -c %Y $LIB`
-        fi
+            i=${fname%????}
 
-        if [ $STAT_SRC -gt $STAT_OUT ]
+            echo "${CYN}    src/$i.cpp"
+            SRC="src/$i.cpp"
+            LIB="lib/$i.o"
+
+            STAT_SRC=`stat -c %Y $SRC`
+            STAT_OUT=0
+
+            if [ -e $LIB ] # make sure the .o file exists before testing it with stat
+            then
+                STAT_OUT=`stat -c %Y $LIB`
+            fi
+
+            if [ $STAT_SRC -gt $STAT_OUT ]
+            then
+                echo "      -- $SRC newer, recompiling..."
+                g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
+            else
+                echo "      -- $LIB newer, skipping compilation..."
+            fi
+        fi
+    done
+
+elif [ $1 == --nodes ]
+then
+
+    NODEFILES=( `ls ./nodes/` )
+    for folder in "${NODEFILES[@]}"
+    do
+        if [ -d ./nodes/$folder ]
         then
-            echo "      -- $SRC newer, recompiling..."
-            g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
-        else
-            echo "      -- $LIB newer, skipping compilation..."
+            # this is a directory, assume it contains a project node
+            echo "${RED}  Compiling ./nodes/$folder ${RST}"
+            cd ./nodes/$folder && bash build.sh
+            cd ../..
         fi
-
     done
 
 elif [ $1 == --vn ]
@@ -76,7 +103,6 @@ then
     do
         SRC=${i%????}
         echo "      Compiling $i"
-        #echo "        lib/$SRC.o"
         g++ -c -o ./lib/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
     done
 
@@ -107,6 +133,8 @@ then
     # remove everything in bin/ and lib/
     rm -rf bin/*
     rm -rf lib/*
+    rmdir bin
+    rmdir lib
 
 fi 
 
