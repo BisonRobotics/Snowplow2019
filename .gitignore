@@ -1,3 +1,7 @@
 .vscode
 *.o
-bin
+./bin/*
+./lib/*
+
+*.out
+*.exe
