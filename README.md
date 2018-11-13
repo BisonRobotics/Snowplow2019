@@ -12,11 +12,20 @@
   - `sudo apt install liblua5.1-0-dbg`
   - `sudo apt install lua5.1-doc`
 
-### building
+### Building
 
 `bash build.sh --lib`
-
 `bash build.sh --bin`
+
+### Adding udev rules
+
+- add udev files to:
+
+    `/etc/udev/rules.d`
+    
+- reset the udev rules using:
+
+    `sudo udevadm control --reload-rules`
 
 ### Computer login
 
