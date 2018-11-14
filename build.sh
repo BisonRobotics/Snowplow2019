@@ -162,6 +162,21 @@ then
     rmdir bin
     rmdir lib
 
+    # remove object code files and executables in nodes/*
+    NODEFILES=( `ls ./nodes/` )
+    for folder in "${NODEFILES[@]}"
+    do
+        FILDES=( "main.exe" "main.o" )
+        for filename in "${FILDES[@]}"
+        do
+            if [ -e ./nodes/$folder/$filename ]
+            then
+                # not testing if this exists first can cause 'incidents'
+                rm ./nodes/$folder/$filename
+            fi
+        done
+    done
+
 fi
 
 # i never finish anythi

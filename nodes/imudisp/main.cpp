@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
 
     imu = new ImuData(new CPJL("localhost", 14000), topicname, 
             [](void) -> void {
-                cout 
+                cout << endl
                 << "Imu data"
                 << "    X Acc: " << imu->x_acc << endl
                 << "    Y Acc: " << imu->y_acc << endl
