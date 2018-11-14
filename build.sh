@@ -11,7 +11,7 @@ RST=`tput sgr0`
 print_command_line_opts()
 {
     echo "${RED}  Options:"
-    echo "    --all   : perform all of the steps below"
+    echo "    --all   : perform all of the steps below, starting with --clean"
     echo "    --lib   : (re)build all of the .o files needed for linking libraries, but no VN libs"
     echo "    --bin   : (re)build all of the c++ executables (test files only)"
     echo "    --vn    : (re)build all of the VectorNav libraries"
@@ -35,7 +35,7 @@ FOLDERS=( "lib" "bin" "lib/vn" )
 for foldername in "${FOLDERS[@]}"
 do
     if [ ! -d $foldername ]; then
-        echo "${MAG}Creating directory '$foldername'"
+        echo "${MAG}Creating directory '$foldername'${RST}"
         mkdir $foldername
     fi
 done
@@ -46,9 +46,9 @@ INC_OPTS="-I./inc/" # the default directory for headers in this project
 
 if [ $1 == --all ]
 then
-    printf "This will delete all existing binaries. Are you sure you want to continue [y/n] "
+    printf "${RED}This will delete all existing binaries. Are you sure you want to continue [y/n] "
     read -n1 reply
-    echo ""
+    echo "${RST}"
 
     if [ "$reply" != "y" ] && [ "$reply" != "Y" ]
     then
@@ -166,7 +166,7 @@ then
     NODEFILES=( `ls ./nodes/` )
     for folder in "${NODEFILES[@]}"
     do
-        FILDES=( "main.exe" "main.o" )
+        FILDES=( "main.exe" "main.out" "main.o" )
         for filename in "${FILDES[@]}"
         do
             if [ -e ./nodes/$folder/$filename ]
