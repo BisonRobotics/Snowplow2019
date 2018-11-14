@@ -31,7 +31,7 @@ fi
 # =======================================
 
 # create certain folders if they dont exist
-FOLDERS=( "lib" "bin" )
+FOLDERS=( "lib" "bin" "lib/vn" )
 for foldername in "${FOLDERS[@]}"
 do
     if [ ! -d $foldername ]; then
@@ -124,7 +124,7 @@ then
     do
         SRC=${i%????}
         echo "      Compiling $i"
-        g++ -c -o ./lib/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+        g++ -c -o ./lib/vn/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
     done
 
 elif [ $1 == --bin ] # build executables

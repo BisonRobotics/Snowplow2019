@@ -12,13 +12,13 @@ int main(int argc, char* argv[]) {
     imu = new ImuData(new CPJL("localhost", 14000), topicname, 
             [](void) -> void {
                 cout 
-                    << "Imu data"
-                    << "    X Acc: " << imu->x_acc << endl
-                    << "    Y Acc: " << imu->y_acc << endl
-                    << "    X Vel: " << imu->x_vel << endl
-                    << "    Y Vel: " << imu->y_vel << endl
-                    << "    X Pos: " << imu->x_pos << endl
-                    << "    Y Pos: " << imu->y_pos << endl;
+                << "Imu data"
+                << "    X Acc: " << imu->x_acc << endl
+                << "    Y Acc: " << imu->y_acc << endl
+                << "    X Vel: " << imu->x_vel << endl
+                << "    Y Vel: " << imu->y_vel << endl
+                << "    X Pos: " << imu->x_pos << endl
+                << "    Y Pos: " << imu->y_pos << endl;
             });
 
     // spend forever waiting
