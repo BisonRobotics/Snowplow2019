@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
         // send data
         imu->putMessage();
         usleep(1000000); // ~1Hz
+
     }
 
     return 0;

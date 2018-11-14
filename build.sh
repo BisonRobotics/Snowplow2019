@@ -57,7 +57,6 @@ then
     fi
 
     echo "${YEL}  Building everything..."
-
     bash build.sh --clean
     bash build.sh --lib
     bash build.sh --vn
