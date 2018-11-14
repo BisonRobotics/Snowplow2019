@@ -22,7 +22,7 @@
 - add udev files to:
 
     `/etc/udev/rules.d`
-    
+
 - reset the udev rules using:
 
     `sudo udevadm control --reload-rules`
@@ -30,6 +30,7 @@
 ### Computer login
 
 username: thundar
+
 password: password
 
 ### Remote login
