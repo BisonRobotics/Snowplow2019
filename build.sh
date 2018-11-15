@@ -8,6 +8,18 @@ MAG=`tput setaf 5`
 CYN=`tput setaf 6`
 RST=`tput sgr0`
 
+# find the MRM timestamp for the given file. 
+# if file does not exist, returns zero
+file_timestamp() # file_timestamp fileToTest resultReturn
+{
+    if [ -e $1 ]; then
+        local ts=`stat -c %Y $1`
+        eval $2=$ts
+    else
+        eval $2=0
+    fi
+}
+
 print_command_line_opts()
 {
     echo "${RED}  Options:"
@@ -88,10 +100,11 @@ then
 
             if [ $STAT_SRC -gt $STAT_OUT ]
             then
-                echo "      -- $SRC newer, recompiling..."
+                printf "      Source newer, recompiling..."
                 g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
+                echo "${GRN}DONE"
             else
-                echo "      -- $LIB newer, skipping compilation..."
+                echo "      Object file newer, skipping compilation..."
             fi
         fi
     done
@@ -121,9 +134,24 @@ then
 
     for i in "${VNFILES[@]}"
     do
+        echo "      ${CYN}./src/vn/$i"
         SRC=${i%????}
-        echo "      Compiling $i"
-        g++ -c -o ./lib/vn/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+
+        # do a quick timestamp check, second 
+        # arg is where result is stored
+        file_timestamp "./src/vn/$SRC.cpp" ORIG
+        file_timestamp "./lib/vn/$SRC.o" OBJ
+
+        if [ $ORIG -gt $OBJ ]; then
+            printf "        ${CYN}Source file newer, compiling..."
+            g++ -c -o ./lib/vn/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+            echo "${GRN}DONE"
+        else
+            echo "        ${CYN}Object file newer, skipping compilation"        
+        fi
+
+        #echo "      Compiling $i"
+        #g++ -c -o ./lib/vn/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
     done
 
 elif [ $1 == --bin ] # build executables
