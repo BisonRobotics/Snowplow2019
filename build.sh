@@ -8,10 +8,22 @@ MAG=`tput setaf 5`
 CYN=`tput setaf 6`
 RST=`tput sgr0`
 
+# find the MRM timestamp for the given file. 
+# if file does not exist, returns zero
+file_timestamp() # file_timestamp fileToTest resultReturn
+{
+    if [ -e $1 ]; then
+        local ts=`stat -c %Y $1`
+        eval $2=$ts
+    else
+        eval $2=0
+    fi
+}
+
 print_command_line_opts()
 {
     echo "${RED}  Options:"
-    echo "    --all   : perform all of the steps below"
+    echo "    --all   : perform all of the steps below, starting with --clean"
     echo "    --lib   : (re)build all of the .o files needed for linking libraries, but no VN libs"
     echo "    --bin   : (re)build all of the c++ executables (test files only)"
     echo "    --vn    : (re)build all of the VectorNav libraries"
@@ -31,11 +43,11 @@ fi
 # =======================================
 
 # create certain folders if they dont exist
-FOLDERS=( "lib" "bin" )
+FOLDERS=( "lib" "bin" "lib/vn" )
 for foldername in "${FOLDERS[@]}"
 do
     if [ ! -d $foldername ]; then
-        echo "${MAG}Creating directory '$foldername'"
+        echo "${MAG}Creating directory '$foldername'${RST}"
         mkdir $foldername
     fi
 done
@@ -46,9 +58,9 @@ INC_OPTS="-I./inc/" # the default directory for headers in this project
 
 if [ $1 == --all ]
 then
-    printf "This will delete all existing binaries. Are you sure you want to continue [y/n] "
+    printf "${RED}This will delete all existing binaries. Are you sure you want to continue [y/n] "
     read -n1 reply
-    echo ""
+    echo "${RST}"
 
     if [ "$reply" != "y" ] && [ "$reply" != "Y" ]
     then
@@ -57,7 +69,6 @@ then
     fi
 
     echo "${YEL}  Building everything..."
-
     bash build.sh --clean
     bash build.sh --lib
     bash build.sh --vn
@@ -89,10 +100,11 @@ then
 
             if [ $STAT_SRC -gt $STAT_OUT ]
             then
-                echo "      -- $SRC newer, recompiling..."
+                printf "      Source newer, recompiling..."
                 g++ -c -o $LIB $SRC $STD_OPTS $INC_OPTS
+                echo "${GRN}DONE"
             else
-                echo "      -- $LIB newer, skipping compilation..."
+                echo "      Object file newer, skipping compilation..."
             fi
         fi
     done
@@ -122,9 +134,24 @@ then
 
     for i in "${VNFILES[@]}"
     do
+        echo "      ${CYN}./src/vn/$i"
         SRC=${i%????}
-        echo "      Compiling $i"
-        g++ -c -o ./lib/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+
+        # do a quick timestamp check, second 
+        # arg is where result is stored
+        file_timestamp "./src/vn/$SRC.cpp" ORIG
+        file_timestamp "./lib/vn/$SRC.o" OBJ
+
+        if [ $ORIG -gt $OBJ ]; then
+            printf "        ${CYN}Source file newer, compiling..."
+            g++ -c -o ./lib/vn/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
+            echo "${GRN}DONE"
+        else
+            echo "        ${CYN}Object file newer, skipping compilation"        
+        fi
+
+        #echo "      Compiling $i"
+        #g++ -c -o ./lib/vn/$SRC.o -w ./src/vn/$SRC.cpp $STD_OPTS $INC_OPTS
     done
 
 elif [ $1 == --bin ] # build executables
@@ -132,24 +159,24 @@ then
     echo "${YEL}  Building executables..."
 
     echo "${CYN}    test/main.cpp"
-    g++ test/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/RoboteqDevice.o -o bin/main \
+    g++ test/main.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/RoboteqDevice.o -o bin/main.exe \
     $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/xboxcontrol.cpp"
     g++ test/xboxcontrol.cpp ./lib/DriveTrain.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
-    ./lib/serial-interface.o -o bin/xboxcontrol $STD_OPTS $INC_OPTS
+    ./lib/serial-interface.o -o bin/xboxcontrol.exe $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/motorcontrollerTest.cpp"
     g++ test/motorcontrollerTest.cpp ./lib/DriveTrain.o  ./lib/serial-interface.o ./lib/RoboteqDevice.o \
-    -o bin/motorcontrollerTest $STD_OPTS $INC_OPTS
+    -o bin/motorcontrollerTest.exe $STD_OPTS $INC_OPTS
 
     echo "${CYN}    test/sicksensormsgsplit.cpp"
-    g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit \
+    g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit.exe \
     $STD_OPTS $INC_OPTS
 
     echo "${CYN}  app/teleop"
     g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
-    -o bin/teleop $STD_OPTS $INC_OPTS
+    -o bin/teleop.exe $STD_OPTS $INC_OPTS
 
 
 elif [ $1 == --clean ] # delete all unneccessary files
@@ -161,6 +188,21 @@ then
     rm -rf lib/*
     rmdir bin
     rmdir lib
+
+    # remove object code files and executables in nodes/*
+    NODEFILES=( `ls ./nodes/` )
+    for folder in "${NODEFILES[@]}"
+    do
+        FILDES=( "main.exe" "main.out" "main.o" )
+        for filename in "${FILDES[@]}"
+        do
+            if [ -e ./nodes/$folder/$filename ]
+            then
+                # not testing if this exists first can cause 'incidents'
+                rm ./nodes/$folder/$filename
+            fi
+        done
+    done
 
 fi
 
