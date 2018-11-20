@@ -2,7 +2,7 @@
 #include <CPJL.hpp>
 #include <cpp/ImuData.h>
 
-#include <vn/sensors.h>
+#include <vn/ezasyncdata.h>
 #include <vn/thread.h>
 
 #include "main.h"
@@ -24,27 +24,40 @@ int main(int argc, char* argv[]) {
     }
     mount_loc = argv[1];
 
-    // setup vecnav communication
-    VnSensor vecnav;
-    vecnav.connect(mount_loc, 115200);
-    auto mn = vecnav.readModelNumber();
-    cout << "Model number: " << mn << endl;
-
+    // prepare to send IMU data
     auto imu = new ImuData(new CPJL("localhost", 14000), topicname);
 
-    while(true) {
-        // read data
-        auto reg = vecnav.measure_everything();
+    // prepare IMU
+    auto* ez = EzAsyncData::connect(mount_loc, 115200);
 
-        // package data
-        imu->timestamp = 0L;
-        imu->x_acc = reg.accel.x;
-        imu->y_acc = reg.accel.y;
+    long int timestamp_val = 0L;
+    while(true) {
+        imu->timestamp = (++timestamp_val);
+
+        // grab all data from VecNav
+        auto cd = ex->currentData();
+
+        // fill out appropriate message fields if data is 
+        // available. if no new data is ready, send the 
+        // previous value
+        if(cd.hasYawPitchRoll()) {
+            auto ypr = cd.yawPitchRoll();
+            imu->z_orient = ypr.z;
+        }
+        if(cd.hasAcceleration()) {
+            auto accel = cd.acceleration();
+            imu->x_acc = accel.x;
+            imu->y_acc = accel.y;
+        }
+        if(cd.hasAnyVelocity()) {
+            auto vel = cd.anyVelocity();
+            imu->x_vel = vel.x;
+            imu->y_vel = vel.y;
+        }
 
         // send data
         imu->putMessage();
-        usleep(100000); // ~10Hz
-
+        usleep(10000); // ~100Hz
     }
 
     return 0;
