@@ -205,5 +205,3 @@ then
     done
 
 fi
-
-# i never finish anythi
