@@ -12,15 +12,19 @@ int SC::updateBuffer(std::vector<char>& vec) {
     char buf[1024];
     int i = read(fd, buf, 1024);
 
-    for(int j = 0; j < i; j++)
-        vec.push_back(buf[j]);
+    if(i > 0) {
+        std::cout << "DATA RECEIVED!!\n";
+        for(int j = 0; j < i; j++)
+            vec.push_back(buf[j]);
+    }
 
     return i;
 }
 
 void SC::set_SerialPort(const char* serialPort) {
     memset(&tty, 0, sizeof tty);
-    fd = open(serialPort, O_RDWR | O_NOCTTY | O_NDELAY); // pretty standard flags
+    //fd = open(serialPort, O_RDWR | O_NOCTTY | O_NDELAY); // pretty standard flags
+    fd = open(serialPort, O_RDWR | O_NOCTTY);
     if(fd < 0) {
         int e = errno;
         std::cerr << "Error opening file" << std::endl;
