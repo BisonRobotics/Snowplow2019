@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
 
     encoder = new Encoder(new CPJL("localhost", 14000), topicname,
         [](void) -> void {
-            cout << "Left: " << encoder->left 
+            cout << "Left: " << encoder->left
             << ", right: " << encoder->right << endl;
         });
 
