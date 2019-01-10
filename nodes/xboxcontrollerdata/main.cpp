@@ -24,6 +24,9 @@ int main(int argc, char* argv[]) {
         new XboxData(
             new CPJL(argv[1], 14000), "xbox_data");
 
+    // disable Nagles Alg for this socket
+    xbox_data_tx->setQuick();
+
     XboxController xbox;
 
     while(true) {
