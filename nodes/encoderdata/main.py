@@ -11,7 +11,7 @@ sys.path.append('../../../CPJL/lib/python')
 from CPJL import *
 from Encoder import *
 
-baudrate = 9600
+baudrate = 115200
 ser = serial.Serial('/dev/arduino', baudrate, timeout = 1)
 sleep(2)
 
@@ -31,11 +31,46 @@ current_loop_iteration = int(0)
 
 print('Looping...')
 while True:
+    # Request encoder data
     ser.write('d'.encode('utf-8'))
-    sleep(0.5)
-    res = ser.read(11)
+
+    # Read reply with data
+    try:
+        res = ser.read(11)
+    except EnvironmentError:
+        print("Error reading serial data!")
+        continue
+    
+    #unpack data
     #print("Response length: " + str(len(res)))
     st = struct.unpack("<cicic", res)
+
+    # Check for CRC error
+    error = False
+    if st[0] != 'd':
+        error = True
+    if crc8(res, 5) != st[2]
+        error = True
+    if crc8(res[6:9], 4) != st[4]
+        error = True
+
+    while error:
+        # Request data be re-sent
+        print("CRC Error, requesting re-send")
+        ser.write('r'.encode('utf-8'))
+        try:
+            res = ser.read(11)
+        except EnvironmentError:
+            print("Error reading serial data!")
+            continue
+        st = struct.unpack("<cicic", res)
+        error = False
+        if st[0] != 'r':
+            error = True
+        if crc8(bytearray(res), 5) != st[2]
+            error = True
+        if crc8(bytearray(res[6:9]), 4) != st[4]
+            error = True
 
     d1 = st[1]
     d2 = st[3]
@@ -47,5 +82,10 @@ while True:
 
     print("  TX: left: " + str(encoder_obj.left) + ", right: " + str(encoder_obj.right))
     current_loop_iteration = current_loop_iteration + 1
+    #sleep(0.5)
 
-    #sleep(0.05)
+def crc8(buf, length):
+    returnVal = 0
+    for i in range(length):
+        returnVal = ((buf[i] & 0xFF) ^ returnVal) & 0xFF
+    return returnVal
