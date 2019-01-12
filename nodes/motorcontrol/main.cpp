@@ -34,6 +34,8 @@ void callback(void) {
             dt->wheelHalt(true, true);
         exit(EXIT_SUCCESS);
     }
+
+    cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
 }
 
 int main(int argc, char* argv[]) {
