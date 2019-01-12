@@ -18,6 +18,12 @@ sleep(2)
 distance1 = 0
 distance2 = 0
 
+def crc8(buf, length):
+    returnVal = 0
+    for i in range(length):
+        returnVal = ((buf[i] & 0xFF) ^ returnVal) & 0xFF
+    return returnVal
+
 def encoder_callback(obj):
     print("  RX: left: " + str(obj.left) + ", right: " + str(obj.right) + "\n")
 
@@ -49,9 +55,9 @@ while True:
     error = False
     if st[0] != 'd':
         error = True
-    if crc8(res, 5) != st[2]
+    if crc8(res, 5) != st[2]:
         error = True
-    if crc8(res[6:9], 4) != st[4]
+    if crc8(res[6:9], 4) != st[4]:
         error = True
 
     while error:
@@ -67,9 +73,9 @@ while True:
         error = False
         if st[0] != 'r':
             error = True
-        if crc8(bytearray(res), 5) != st[2]
+        if crc8(bytearray(res), 5) != st[2]:
             error = True
-        if crc8(bytearray(res[6:9]), 4) != st[4]
+        if crc8(bytearray(res[6:9]), 4) != st[4]:
             error = True
 
     d1 = st[1]
@@ -83,9 +89,3 @@ while True:
     print("  TX: left: " + str(encoder_obj.left) + ", right: " + str(encoder_obj.right))
     current_loop_iteration = current_loop_iteration + 1
     #sleep(0.5)
-
-def crc8(buf, length):
-    returnVal = 0
-    for i in range(length):
-        returnVal = ((buf[i] & 0xFF) ^ returnVal) & 0xFF
-    return returnVal
