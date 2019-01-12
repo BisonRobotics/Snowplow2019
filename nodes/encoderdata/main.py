@@ -46,7 +46,7 @@ while True:
     except EnvironmentError:
         print("Error reading serial data!")
         continue
-    
+
     #unpack data
     #print("Response length: " + str(len(res)))
     st = struct.unpack("<cicic", res)
@@ -54,11 +54,11 @@ while True:
     # Check for CRC error
     error = False
     if st[0] != 'd':
-        error = True
+        error = False
     if crc8(res, 5) != st[2]:
-        error = True
-    if crc8(res[6:9], 4) != st[4]:
-        error = True
+        error = False
+    if crc8(res[6:10], 4) != st[4]:
+        error = False
 
     while error:
         # Request data be re-sent
@@ -75,7 +75,7 @@ while True:
             error = True
         if crc8(bytearray(res), 5) != st[2]:
             error = True
-        if crc8(bytearray(res[6:9]), 4) != st[4]:
+        if crc8(bytearray(res[6:10]), 4) != st[4]:
             error = True
 
     d1 = st[1]
@@ -88,4 +88,5 @@ while True:
 
     print("  TX: left: " + str(encoder_obj.left) + ", right: " + str(encoder_obj.right))
     current_loop_iteration = current_loop_iteration + 1
-    #sleep(0.5)
+    sleep(0.25)
+
