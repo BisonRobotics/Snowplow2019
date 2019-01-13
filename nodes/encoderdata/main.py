@@ -1,5 +1,5 @@
 import serial
-from time import sleep
+from time import sleep, time
 import struct
 import numpy as np
 
@@ -47,6 +47,9 @@ while True:
         print("Error reading serial data!")
         continue
 
+    # microsecond timestamp
+    ts = time() * 1000000.0
+
     #unpack data
     #print("Response length: " + str(len(res)))
     st = struct.unpack("<cicic", res)
@@ -84,9 +87,9 @@ while True:
     # load data in the structure and send it on its way
     encoder_obj.left = d1
     encoder_obj.right = d2
+    encoder_obj.timestamp = ts
     encoder_obj.putMessage()
 
     print("  TX: left: " + str(encoder_obj.left) + ", right: " + str(encoder_obj.right))
     current_loop_iteration = current_loop_iteration + 1
-    sleep(0.25)
-
+    sleep(0.1)

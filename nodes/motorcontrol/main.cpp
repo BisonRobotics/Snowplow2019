@@ -4,18 +4,20 @@
 // message type
 #include <CPJL.hpp>
 #include <cpp/XboxData.h>
+#include <cpp/Encoder.h>
 
 // interface library for RoboteQ 
 // motor controller
 #include <DriveTrain.h>
-#include <misc.h>
 
+#include <misc.h>
 #include <unistd.h>
 
 using namespace std;
 
+Encoder* encoder = NULL;
 XboxData* xbox_data_rx = NULL;
-DriveTrain* dt = NULL;
+DriveTrain* drive_train = NULL;
 
 void callback(void) {
     int left_motor 
@@ -26,16 +28,42 @@ void callback(void) {
     left_motor = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
     right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
 
-    dt->wheelVelocity(right_motor, RoboteqChannel_2, true, true);
-    dt->wheelVelocity(left_motor, RoboteqChannel_1, true, true);
+    drive_train->wheelVelocity(right_motor, RoboteqChannel_2, true, true);
+    drive_train->wheelVelocity(left_motor, RoboteqChannel_1, true, true);
 
     if(xbox_data_rx->button_b) {
         for(int i : {0, 1, 2})
-            dt->wheelHalt(true, true);
+            drive_train->wheelHalt(true, true);
         exit(EXIT_SUCCESS);
     }
 
-    cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
+    //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
+}
+
+uint64_t last_timestamp = -1;
+const double setpoint = 1.0;
+double left_integral = 0.0;
+
+void encoder_callback(void) {
+    double dt = encoder->timestamp - last_timestamp;
+    dt /= 60000000.0;
+
+    double P = 10.0;
+    double I = 0.1;
+
+    double ticks = encoder->left;
+    ticks /= 1024.0; // number of rotations since last poll
+
+    double rpm = ticks / dt;
+    double error = (rpm - setpoint);
+
+    // update the running integral
+    left_integral += (error * dt);
+
+    double output = (P * error) + (I * left_integral);
+
+    cout << "Measured speed: " << rpm << ", PI(D) output: " << output << endl;
+    last_timestamp = encoder->timestamp;
 }
 
 int main(int argc, char* argv[]) {
@@ -51,7 +79,13 @@ int main(int argc, char* argv[]) {
         callback
     );
 
-    dt = new DriveTrain(argv[1]);
+    encoder = new Encoder(
+        new CPJL("localhost", 14000),
+        "encoder_data",
+        encoder_callback
+    );
+
+    drive_train = new DriveTrain(argv[1]);
 
     // start the asynch loop
     auto loop = CPJL_Message::loop();
