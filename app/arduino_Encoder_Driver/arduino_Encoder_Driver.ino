@@ -54,7 +54,7 @@ void setup() {
   pinMode(B_PIN1, INPUT);
   pinMode(A_PIN2, INPUT);
   pinMode(B_PIN2, INPUT);
-  Serial.begin(9600);
+  Serial.begin(115200);
   attachInterrupt(digitalPinToInterrupt(A_PIN1), A_High1, RISING);
   attachInterrupt(digitalPinToInterrupt(A_PIN2), A_High2, RISING);
 }
