@@ -19,6 +19,36 @@ Encoder* encoder = NULL;
 XboxData* xbox_data_rx = NULL;
 DriveTrain* drive_train = NULL;
 
+uint64_t last_timestamp = -1;
+const double setpoint = 50.0; // unit: RPM
+double left_integral = 0.0;
+double right_integral = 0.0;
+
+void encoder_callback(void) {
+    double dt = encoder->timestamp - last_timestamp;
+    dt /= 60000000.0;
+
+    // PID gains
+    const double P = 3.0;
+    const double I = 0.1;
+    const double D = 0.0;
+
+    double ticks = encoder->left;
+    ticks /= 1024.0; // number of rotations since last poll
+
+    double rpm = ticks / dt;
+    double error = (rpm - setpoint);
+
+    // update the running integral
+    left_integral += (error * dt);
+
+    //double output = (P * error) + (I * left_integral);
+    double output = (p * error);
+
+    cout << "Measured speed: " << rpm << ", Error: " << error << ", PID output: " << output << endl;
+    last_timestamp = encoder->timestamp;
+}
+
 void callback(void) {
     int left_motor 
         = xbox_data_rx->y_joystick_left;
@@ -38,32 +68,6 @@ void callback(void) {
     }
 
     //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
-}
-
-uint64_t last_timestamp = -1;
-const double setpoint = 1.0;
-double left_integral = 0.0;
-
-void encoder_callback(void) {
-    double dt = encoder->timestamp - last_timestamp;
-    dt /= 60000000.0;
-
-    double P = 10.0;
-    double I = 0.1;
-
-    double ticks = encoder->left;
-    ticks /= 1024.0; // number of rotations since last poll
-
-    double rpm = ticks / dt;
-    double error = (rpm - setpoint);
-
-    // update the running integral
-    left_integral += (error * dt);
-
-    double output = (P * error) + (I * left_integral);
-
-    cout << "Measured speed: " << rpm << ", PI(D) output: " << output << endl;
-    last_timestamp = encoder->timestamp;
 }
 
 int main(int argc, char* argv[]) {

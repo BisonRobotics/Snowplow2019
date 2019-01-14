@@ -85,9 +85,9 @@ while True:
     d2 = st[3]
 
     # load data in the structure and send it on its way
-    encoder_obj.left = d1
+    encoder_obj.left = -d1
     encoder_obj.right = d2
-    encoder_obj.timestamp = ts
+    encoder_obj.timestamp = int(ts)
     encoder_obj.putMessage()
 
     print("  TX: left: " + str(encoder_obj.left) + ", right: " + str(encoder_obj.right))
