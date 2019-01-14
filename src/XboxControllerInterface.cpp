@@ -23,6 +23,11 @@ XboxController::XboxController(void) {
         std::cout << "    " << SDL_JoystickName(i) << std::endl;
         this->joystick_ptr_vec.push_back(SDL_JoystickOpen(i));
     }
+
+	if(joysticks == 0) {
+		std::cerr << "No joysticks attached...exiting" << std::endl;
+		exit(EXIT_FAILURE);	
+	}
 }
 
 void XboxController::update(void) {

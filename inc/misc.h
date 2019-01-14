@@ -1,6 +1,8 @@
 #ifndef __JJC__MISC__H__
 #define __JJC__MISC__H__
 
+#include <sys/time.h>
+
 float mapFloat(
         float input, 
         float input_start,  float input_end, 
@@ -21,6 +23,13 @@ double mapDouble(
             + ((output_end - output_start) 
             / (input_end - input_start)) 
             * (input - input_start);
+}
+
+uint64_t UsecTimestamp(void) {
+    timeval tv;
+    gettimeofday(&tv, NULL);
+
+    return (tv.tv_sec * 1000000) + tv.tv_usec;
 }
 
 #endif // __JJC__MISC__H__
