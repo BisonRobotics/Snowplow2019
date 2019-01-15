@@ -115,7 +115,7 @@ void XboxController::update(void) {
     }
 }
 
-int16_t XboxController::getJoyX(xBox_STICK s) {
+int32_t XboxController::getJoyX(xBox_STICK s) {
     switch(s) {
         case xBox_LEFT:
             return leftJoystickX;
@@ -124,7 +124,7 @@ int16_t XboxController::getJoyX(xBox_STICK s) {
     }
 }
 
-int16_t XboxController::getJoyY(xBox_STICK s) {
+int32_t XboxController::getJoyY(xBox_STICK s) {
     switch(s) {
         case xBox_LEFT:
             return leftJoystickY;
@@ -137,7 +137,7 @@ int16_t XboxController::getJoyY(xBox_STICK s) {
     }
 }
 
-int16_t XboxController::getTrigger(xBox_STICK s) {
+int32_t XboxController::getTrigger(xBox_STICK s) {
     switch(s) {
         case xBox_LEFT:
             return leftTrigger;

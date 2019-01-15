@@ -12,6 +12,9 @@
 // motor controller
 #include <DriveTrain.h>
 
+#define LEFT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_1, true, true)
+#define RIGHT_MOTOR_CMD(amt) drive_train->wheelVelocity(amt, RoboteqChannel_2, true, true)
+
 #include <misc.h>
 #include <unistd.h>
 
@@ -21,72 +24,76 @@ Encoder* encoder = NULL;
 XboxData* xbox_data_rx = NULL;
 DriveTrain* drive_train = NULL;
 
+int clamp_motor(int value) {
+    if(value > 1000)
+        return 1000;
+    else if(value < -1000)
+        return -1000;
+    return value;
+}
+
 uint64_t last_timestamp = -1;
 
-double left_pre_error = 0.0;
-double right_pre_error = 0.0;
+double left_setpoint = 0.0;  // unit: RPM
+double right_setpoint = 0.0; // ...
 
-double left_integral = 0.0;
-double right_integral = 0.0;
-
-// PID gains
-double P = 0.0; // Proportional
-double I = 0.0; // Integral
-double D = 0.0; // Derivative
-
-mutex setpt_mtx;
-double setpoint = 50.0; // unit: RPM
+int left_output_command = 0;  // -1000 -> +1000
+int right_output_command = 0; // ...
+const int adjust_amount = 10; // higher value will react faster but may oscillate too much
 
 // loop is cancelled by locking this
 mutex loop_mtx;
 
 void encoder_callback(void) {
     double dt = encoder->timestamp - last_timestamp;
-    dt /= (60.0 * 1000000.0); // microseconds/minute
+    dt /= (60.0 * 1000000.0); // microseconds / minute
 
-    double ticks = encoder->left;
-    ticks /= 2048.0; // number of rotations since last poll
+    // left wheel
+    double left_ticks = encoder->left;
+    left_ticks /= 2048.0; // number of rotations since last poll
+    double left_rpm = left_ticks / dt;
+    double tmp_left_setpoint = left_setpoint;
+    if(left_rpm < tmp_left_setpoint)
+        left_output_command += adjust_amount;
+    else if(left_rpm > tmp_left_setpoint)
+        left_output_command -= adjust_amount;
 
-    double rpm = ticks / dt;
+    // right wheel
+    double right_ticks = encoder->right;
+    right_ticks /= 2048.0;
+    double right_rpm = right_ticks / dt;
+    double tmp_right_setpoint = right_setpoint;
+    if(right_rpm < tmp_right_setpoint)
+        right_output_command -= adjust_amount;
+    else if(right_rpm > tmp_right_setpoint)
+        right_output_command += adjust_amount;
 
-    setpt_mtx.lock();
-    double error = (rpm - setpoint);
-    setpt_mtx.unlock();
+    left_output_command  = clamp_motor(left_output_command);
+    right_output_command = clamp_motor(right_output_command);
 
-    // update the running integral
-    left_integral += (error * dt);
-    double left_derivative = (error - left_pre_error) / dt;
-
-    double output = (P * error) + (I * left_integral) + (D * left_derivative);
-
-    cout << "Measured speed: " << rpm << ", Setpoint: " << setpoint << ", Error: " << error << ", PID output: " << output << endl;
-
-    if(output > 1000)
-        output = 1000;
-    else if(output < -1000)
-        output = -1000;
+    cout << "Measured: L " << left_rpm << ", R " << right_rpm << endl;
+    cout << "Setpoint: L " << tmp_left_setpoint << ", R " << tmp_right_setpoint << endl;
+    cout << "Output:   L " << left_output_command << ", R " << right_output_command << endl << endl;
 
     loop_mtx.lock();
-    drive_train->wheelVelocity((int)output, RoboteqChannel_1, true, true);
+    LEFT_MOTOR_CMD(left_output_command);
+    RIGHT_MOTOR_CMD(right_output_command);
     loop_mtx.unlock();
 
     last_timestamp = encoder->timestamp;
-    left_pre_error = error;
 }
 
 void callback(void) {
     int left_motor = xbox_data_rx->y_joystick_left;
     int right_motor = xbox_data_rx->y_joystick_right;
 
+    //cout << right_motor << endl;
+
     left_motor  = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
     right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
 
-    setpt_mtx.lock();
-    setpoint = mapFloat(left_motor,  -1000, 1000, 50, -50);
-    setpt_mtx.unlock();
-
-    //drive_train->wheelVelocity(right_motor, RoboteqChannel_2, true, true);
-    //drive_train->wheelVelocity(left_motor, RoboteqChannel_1, true, true);
+    left_setpoint = mapFloat(left_motor,  -1000, 1000, 50, -50);
+    right_setpoint = mapFloat(right_motor, -1000, 1000, 50, -50);
 
     if(xbox_data_rx->button_b) {
         loop_mtx.lock();
@@ -94,8 +101,6 @@ void callback(void) {
             drive_train->wheelHalt(true, true);
         exit(EXIT_SUCCESS);
     }
-
-    //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -103,12 +108,6 @@ int main(int argc, char* argv[]) {
     if(argc != 2) {
         cout << "Usage:\n  " << argv[0] << " <roboteq mount location>\n";
         exit(EXIT_FAILURE);
-    }
-
-    // grab the PID terms from the text file
-    {
-        ifstream ist("./pid-terms.txt");
-        ist >> P >> I >> D;
     }
 
     xbox_data_rx = new XboxData(
@@ -124,15 +123,14 @@ int main(int argc, char* argv[]) {
     );
 
     drive_train = new DriveTrain(argv[1]);
-    drive_train->setWheelVelocityDeadZone(-100, 100);
+    //drive_train->setWheelVelocityDeadZone(-100, 100);
     drive_train->setWatchdogTimer(0, true, true);
 
     // start the asynch loop
     auto loop = CPJL_Message::loop();
 
     // sleep forever
-    while(true)
-        usleep(1000000);
+    while(true) usleep(1000000);
 
     return 0;
 }
