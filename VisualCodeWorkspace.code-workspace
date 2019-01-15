@@ -1,0 +1,9 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{"path": "../CPJL/lib/gen/messages", "name": "CPJL messages"}
+	],
+	"settings": {}
+}
