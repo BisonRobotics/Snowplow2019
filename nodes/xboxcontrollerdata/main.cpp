@@ -32,25 +32,16 @@ int main(int argc, char* argv[]) {
     while(true) {
         xbox.update();
 
-        xbox_data_tx->x_joystick_left 
-            = xbox.getJoyX(xBox_STICK::xBox_LEFT);
-
-        xbox_data_tx->y_joystick_left
-            = xbox.getJoyY(xBox_STICK::xBox_LEFT);
-
-        xbox_data_tx->x_joystick_right
-            = xbox.getJoyX(xBox_STICK::xBox_RIGHT);
-
-        xbox_data_tx->y_joystick_right
-            = xbox.getJoyY(xBox_STICK::xBox_RIGHT);
-
-        xbox_data_tx->button_a
-            = xbox.buttonPressed(xBox_A);
-
-        xbox_data_tx->button_b
-            = xbox.buttonPressed(xBox_B);
+        xbox_data_tx->x_joystick_left = xbox.getJoyX(xBox_STICK::xBox_LEFT);
+        xbox_data_tx->y_joystick_left = xbox.getJoyY(xBox_STICK::xBox_LEFT);
+        xbox_data_tx->x_joystick_right = xbox.getJoyX(xBox_STICK::xBox_RIGHT);
+        xbox_data_tx->y_joystick_right = xbox.getJoyY(xBox_STICK::xBox_RIGHT);
+        xbox_data_tx->button_a = xbox.buttonPressed(xBox_A);
+        xbox_data_tx->button_b = xbox.buttonPressed(xBox_B);
 
         xbox_data_tx->putMessage();
+
+        cout << xbox_data_tx->y_joystick_left << endl;
 
         usleep(100000);
     }
