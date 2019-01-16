@@ -13,23 +13,40 @@
 #include <DriveTrain.h>
 
 #define LEFT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_1, true, true)
-#define RIGHT_MOTOR_CMD(amt) drive_train->wheelVelocity(amt, RoboteqChannel_2, true, true)
+#define RIGHT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_2, true, true)
+#define ENCODER_TICKS_PER_ROTATION      (2048.0)
+#define DEADZONE                        (1)
 
 #include <misc.h>
 #include <unistd.h>
 
 using namespace std;
 
+enum wheels_e
+{
+    LEFT_WHEEL = 0,
+    RIGHT_WHEEL,
+    NUM_OF_WHEELS
+};
+
 Encoder* encoder = NULL;
 XboxData* xbox_data_rx = NULL;
 DriveTrain* drive_train = NULL;
 
-int clamp_motor(int value) {
-    if(value > 1000)
-        return 1000;
-    else if(value < -1000)
-        return -1000;
-    return value;
+int clamp(int value, const int min, const int max) {
+    int returnVal = value;
+    if(value > max)
+        returnVal = max;
+    else if(value < min)
+        returnVal = min;
+    return returnVal;
+}
+
+double encoderDataToRPM(double encoderTicks, double timeDelta)
+{
+    double rotations = encoderTicks / ENCODER_TICKS_PER_ROTATION; // number of rotations since last poll
+    double rpm = rotations / timeDelta;
+    return rpm;
 }
 
 uint64_t last_timestamp = -1;
@@ -37,68 +54,96 @@ uint64_t last_timestamp = -1;
 double left_setpoint = 0.0;  // unit: RPM
 double right_setpoint = 0.0; // ...
 
-int left_output_command = 0;  // -1000 -> +1000
-int right_output_command = 0; // ...
 const int adjust_amount = 10; // higher value will react faster but may oscillate too much
 
 // loop is cancelled by locking this
+mutex setpoint_mutex;
 mutex loop_mtx;
 
 void encoder_callback(void) {
     double dt = encoder->timestamp - last_timestamp;
     dt /= (60.0 * 1000000.0); // microseconds / minute
 
-    // left wheel
-    double left_ticks = encoder->left;
-    left_ticks /= 2048.0; // number of rotations since last poll
-    double left_rpm = left_ticks / dt;
-    double tmp_left_setpoint = left_setpoint;
-    if(left_rpm < tmp_left_setpoint)
-        left_output_command += adjust_amount;
-    else if(left_rpm > tmp_left_setpoint)
-        left_output_command -= adjust_amount;
+    double wheel_rpm[NUM_OF_WHEELS];
+    double setpoint[NUM_OF_WHEELS];
+    static double prev_cmd[NUM_OF_WHEELS];
+    double cmd[NUM_OF_WHEELS];
 
-    // right wheel
-    double right_ticks = encoder->right;
-    right_ticks /= 2048.0;
-    double right_rpm = right_ticks / dt;
-    double tmp_right_setpoint = right_setpoint;
-    if(right_rpm < tmp_right_setpoint)
-        right_output_command -= adjust_amount;
-    else if(right_rpm > tmp_right_setpoint)
-        right_output_command += adjust_amount;
 
-    left_output_command  = clamp_motor(left_output_command);
-    right_output_command = clamp_motor(right_output_command);
+    // Get wheel RPM
+    wheel_rpm[LEFT_WHEEL]  = encoderDataToRPM(encoder->left, dt);
+    wheel_rpm[RIGHT_WHEEL] = encoderDataToRPM(encoder->right, dt);
 
-    cout << "Measured: L " << left_rpm << ", R " << right_rpm << endl;
-    cout << "Setpoint: L " << tmp_left_setpoint << ", R " << tmp_right_setpoint << endl;
-    cout << "Output:   L " << left_output_command << ", R " << right_output_command << endl << endl;
+    // Make local copy of setpoints
+    setpoint_mutex.lock();
+    setpoint[LEFT_WHEEL] = left_setpoint;
+    setpoint[RIGHT_WHEEL] = right_setpoint;
+    setpoint_mutex.unlock();
+
+
+    for(int i=0; i<NUM_OF_WHEELS; i++)
+    {
+        if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
+        {
+            if(wheel_rpm[i] < setpoint[i])
+            {
+                double error = setpoint[i] - wheel_rpm[i];
+                cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
+            }
+            else
+            {
+                double error = wheel_rpm[i] - setpoint[i];
+                cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
+            }
+        }
+        else
+        {
+            cmd[i] = 0;
+        }
+        cmd[i] = clamp(cmd[i], -1000, 1000);
+    }
+
+    cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
+    cout << "Setpoint: L " << setpoint[LEFT_WHEEL] << ", R " << setpoint[RIGHT_WHEEL] << endl;
+    cout << "Output:   L " << cmd[LEFT_WHEEL] << ", R " << cmd[RIGHT_WHEEL] << endl << endl;
 
     loop_mtx.lock();
-    LEFT_MOTOR_CMD(left_output_command);
-    RIGHT_MOTOR_CMD(right_output_command);
+    LEFT_MOTOR_CMD(cmd[LEFT_WHEEL]);
+    RIGHT_MOTOR_CMD(cmd[RIGHT_WHEEL]);
     loop_mtx.unlock();
+
+    for(int i=0 ; i<NUM_OF_WHEELS ; i++)
+    {
+        prev_cmd[i] = cmd[i];
+    }
 
     last_timestamp = encoder->timestamp;
 }
 
-void callback(void) {
-    int left_motor = xbox_data_rx->y_joystick_left;
-    int right_motor = xbox_data_rx->y_joystick_right;
+void controller_callback(void) {
+    int left_stick = xbox_data_rx->y_joystick_left;
+    int right_stick = xbox_data_rx->y_joystick_right;
 
     //cout << right_motor << endl;
 
-    left_motor  = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
-    right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
+    //left_motor  = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
+    //right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
 
-    left_setpoint = mapFloat(left_motor,  -1000, 1000, 50, -50);
-    right_setpoint = mapFloat(right_motor, -1000, 1000, 50, -50);
+    double temp_left_setpoint = mapFloat(left_stick,  -32768, 32767, 50, -50);
+    double temp_right_setpoint = mapFloat(right_stick, -32768, 32767, 50, -50);
+
+    setpoint_mutex.lock();
+    left_setpoint = temp_left_setpoint;
+    right_setpoint = temp_right_setpoint;
+    setpoint_mutex.unlock();
 
     if(xbox_data_rx->button_b) {
         loop_mtx.lock();
         for(int i : {0, 1, 2})
+        {
+            (void)i;
             drive_train->wheelHalt(true, true);
+        }
         exit(EXIT_SUCCESS);
     }
 }
@@ -113,7 +158,7 @@ int main(int argc, char* argv[]) {
     xbox_data_rx = new XboxData(
         new CPJL("localhost", 14000), 
         "xbox_data",
-        callback
+        controller_callback
     );
 
     encoder = new Encoder(
@@ -128,6 +173,7 @@ int main(int argc, char* argv[]) {
 
     // start the asynch loop
     auto loop = CPJL_Message::loop();
+    (void)loop;
 
     // sleep forever
     while(true) usleep(1000000);
