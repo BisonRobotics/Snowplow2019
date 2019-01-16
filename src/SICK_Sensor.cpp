@@ -9,7 +9,7 @@
 
 #include <SICK_Sensor.h>
 
-#define __DEBUG_SCANDATA__
+//#define __DEBUG_SCANDATA__
 
 std::ostream& operator<<(std::ostream& os, User u) {
     switch(u) {
