@@ -60,7 +60,7 @@ bool SickSensor::splitMessageData(void) {
 
     int current_state = STATE_default;
 
-    for(int i = 0; i < _reply_buffer.size();) {
+    for(uint32_t i = 0; i < _reply_buffer.size();) {
 
         switch(current_state) {
             case STATE_default:
@@ -226,7 +226,7 @@ bool SickSensor::scanDataToFloat(void) {
     int dist1_index = -1;
     int num_readings = -1;
 
-    for(int i = 0; i < this->_offset_buffer.size(); i++) {
+    for(uint32_t i = 0; i < this->_offset_buffer.size(); i++) {
         if(strcmp(&_reply_buffer[_offset_buffer[i]], "DIST1") == 0) {
             dist1_index = i;
             num_readings = (int)hexStrToInt(&_reply_buffer[_offset_buffer[i+5]]);
@@ -254,7 +254,7 @@ auto SickSensor::getMeasurementResults(void) -> std::vector<float>& {
 auto SickSensor::getMeasurementResultsAsCartesian(void) -> std::vector<cart_t>& {
     this->_cart_meas_results_.clear();
 
-    for(int i = 0; i < this->_meas_results.size(); i++) {
+    for(uint32_t i = 0; i < this->_meas_results.size(); i++) {
         float ang = float(i-90) * 0.00872665f; // theres that magic number again
         float x = ang * cos(_meas_results[i]);
         float y = ang * sin(_meas_results[i]);
