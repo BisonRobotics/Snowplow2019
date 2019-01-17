@@ -6,11 +6,11 @@
 #include <cpp/SickMeasurement.h>
 #include <misc.h>
 
-// SICK interface class. easy 
+// SICK interface class. easy
 // login and data collection
 #include <SICK_Sensor.h>
 
-// comment out to use the actual SICK 
+// comment out to use the actual SICK
 // device. otherwise, just packages fake data in a loop
 //#define TEST_MODE
 
@@ -43,8 +43,8 @@ int main(int argc, char* argv[]) {
 #else // !TEST_MODE
 
     // data collection endpoint for physical SICK device
-    SickSensor sick;
-    
+    SickSensor sick("192.168.0.1", 2111);
+
     while(true) {
         // get data from the SICK
         sick.scanData();
