@@ -12,7 +12,7 @@
 
 // comment out to use the actual SICK 
 // device. otherwise, just packages fake data in a loop
-#define TEST_MODE
+//#define TEST_MODE
 
 using namespace std;
 

@@ -50,7 +50,6 @@ int main(int argc, char* argv[]) {
 
             for(int i = 0; i < 541; i++) {
                 // heres that mysterious magic number again...
-                //float angle = float(i-90) * 0.00872665;
                 float angle = 0.00872665*float(i) - 0.7853985;
 
                 cartesian_transform.push_back({
