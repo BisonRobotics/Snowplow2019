@@ -38,9 +38,9 @@ class SickSensor {
 private:
     TCP_Controller tc;
 
+    std::vector<std::string> _raw_string_buffer;
     std::vector<float> _meas_results;
     std::vector<char> _reply_buffer;
-    std::vector<int>  _offset_buffer;
     std::vector<cart_t> _cart_meas_results_; // empty unless user explicitly asks for it
 
     // generic send command method used to send ASCII
@@ -57,11 +57,6 @@ private:
     // used by the scanData method to find indices of 
     // different tokens in the response stream
     bool splitMessageData(void);
-
-    // produces a large integer suitable for use in 
-    // converting to other ints, float, or doubles. 
-    // assumes c-string is in hex format
-    int64_t hexStrToInt(char* s);
 
     // convenience method to turn the list of c-strings 
     // into float data internally. returns false if data 
@@ -96,6 +91,10 @@ public:
     // converts the most recent results to cartesian coordinates
     // user needs to provide an existing CartVec object
     auto getMeasurementResultsAsCartesian(void) -> std::vector<cart_t>&;
+
+    // get the tokenized output from the last command sent to 
+    // SICK. This is useful for testing new commands
+    auto getTokenizedOutput(void) -> std::vector<std::string>&;
 
 };
 
