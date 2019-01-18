@@ -38,6 +38,7 @@ class SickSensor {
 private:
     TCP_Controller tc;
 
+    std::vector<std::string> _raw_string_buffer;
     std::vector<float> _meas_results;
     std::vector<char> _reply_buffer;
     std::vector<int>  _offset_buffer;

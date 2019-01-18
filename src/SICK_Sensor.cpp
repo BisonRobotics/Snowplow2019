@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <algorithm>
 #include <stdint.h>
+#include <sstream>
 
 #include <SICK_Sensor.h>
 
@@ -52,73 +53,25 @@ void SickSensor::setAccessMode(User user) {
 }
 
 bool SickSensor::splitMessageData(void) {
-    // Thank you Alan Turing
-    const int STATE_default     = 0;
-    const int STATE_space       = 1;
-    const int STATE_token_start = 2;
-    const int STATE_token_body  = 3;
+    std::stringstream ss;
+    ss.write(&this->_reply_buffer[0], this->_reply_buffer.size());
 
-    int current_state = STATE_default;
+    this->_raw_string_buffer.clear();
 
-    for(int i = 0; i < _reply_buffer.size();) {
-
-        switch(current_state) {
-            case STATE_default:
-                if(_reply_buffer[i] == ' ') {
-                    current_state = STATE_space;
-                } else {
-                    current_state = STATE_token_start;
-                }
-                break;
-
-            case STATE_space:
-                // advance until next char
-                if(_reply_buffer[i] == ' ') {
-                    _reply_buffer[i] = '\0';
-                    i++;
-                } else {
-                    current_state = STATE_token_start;
-                }
-                break;
-
-            case STATE_token_start:
-                _offset_buffer.push_back(i); // save index of this token
-                current_state = STATE_token_body;
-                i++;
-                break;
-                
-            case STATE_token_body:
-                if(_reply_buffer[i] == ' ') {
-                    current_state = STATE_space;
-                } else {
-                    i++; // advance until next space appears
-                }
-                break;
-
-            default:
-                return false;
-        }
-
+    std::string str;
+    while(ss >> str) {
+        this->_raw_string_buffer.push_back(str);
     }
 
-    return true;
+    return false;
 }
 
 bool SickSensor::scanData(void) {
     this->sendCmd("sRN LMDscandata");
-
     this->_reply_buffer.clear();
     this->readReply();
 
-    // need one more space for token splitting method
-    this->_reply_buffer.push_back(' ');    
     this->splitMessageData();
-
-    // some debug info if needed
-    #ifdef __DEBUG_SCANDATA__
-    for(int i : this->_offset_buffer)
-        std::cout << &this->_reply_buffer[i] << std::endl;
-    #endif
 
     if(this->scanDataToFloat() == false)
         return false;
@@ -154,17 +107,25 @@ bool SickSensor::scanData(const char* filename) {
 }
 
 void SickSensor::sendCmd(std::string cmd) {
-    char stx = 0x02;
-    char etx = 0x03;
+    const char stx = 0x02;
+    const char etx = 0x03;
+
+    static std::vector<char> cmd_string;
+    cmd_string.clear();
+
+    cmd_string.push_back(stx);
+    for(char c : cmd)
+        cmd_string.push_back(c);
+    cmd_string.push_back(etx);
+
+    this->tc.writeSocket(&cmd_string[0], cmd_string.size());
 
     // start transmission
-    this->tc.writeSocket(&stx, 1);
-
+    //this->tc.writeSocket(&stx, 1);
     // the actual command
-    this->tc.writeSocket((char*)cmd.c_str(), cmd.size());
-
+    //this->tc.writeSocket((char*)cmd.c_str(), cmd.size());
     // end transmission
-    this->tc.writeSocket(&etx, 1);
+    //this->tc.writeSocket(&etx, 1);
 }
 
 bool SickSensor::readReply(void) {
@@ -180,8 +141,8 @@ bool SickSensor::readReply(void) {
     this->_reply_buffer.clear();
 
     while(1) {
-        char c_buf[64];
-        int n = tc.readSocket(c_buf, 64);
+        char c_buf[512];
+        int n = tc.readSocket(c_buf, 512);
 
         for(int i = 0; i < n; i++) {
             if(c_buf[i] == 0x03)
@@ -190,7 +151,7 @@ bool SickSensor::readReply(void) {
         }
 
         // max size of the return buffer
-        if(_reply_buffer.size() > 10000)
+        if(_reply_buffer.size() > 10000) // ~10KB, a single response should NEVER be this big
             return false; // too many chars, something went wrong
     }
 
@@ -265,5 +226,6 @@ auto SickSensor::getMeasurementResultsAsCartesian(void) -> std::vector<cart_t>& 
 
     return this->_cart_meas_results_;
 }
+
 
 // welcome to the Mystery Machine
