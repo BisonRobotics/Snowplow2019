@@ -80,6 +80,7 @@ bool SickSensor::splitMessageData(void) {
 
 bool SickSensor::scanData(void) {
     this->sendCmd("sRN LMDscandata");
+  
     this->_reply_buffer.clear();
     this->readReply();
 
