@@ -48,7 +48,7 @@ while True:
         continue
 
     # microsecond timestamp
-    ts = time() * 1000000.0
+    ts = time.time() * 1000000.0
 
     #unpack data
     #print("Response length: " + str(len(res)))
@@ -85,8 +85,8 @@ while True:
     d2 = st[3]
 
     # load data in the structure and send it on its way
-    encoder_obj.left = -d1
-    encoder_obj.right = d2
+    encoder_obj.left = int(-d1)
+    encoder_obj.right = int(d2)
     encoder_obj.timestamp = int(ts)
     encoder_obj.putMessage()
 
