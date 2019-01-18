@@ -9,7 +9,7 @@
 
 #include <SICK_Sensor.h>
 
-#define __DEBUG_SCANDATA__
+//#define __DEBUG_SCANDATA__
 
 std::ostream& operator<<(std::ostream& os, User u) {
     switch(u) {
@@ -106,6 +106,8 @@ bool SickSensor::splitMessageData(void) {
 
 bool SickSensor::scanData(void) {
     this->sendCmd("sRN LMDscandata");
+
+    this->_reply_buffer.clear();
     this->readReply();
 
     // need one more space for token splitting method
