@@ -5,7 +5,7 @@
 // CPJL interface layer and 
 // message type
 #include <CPJL.hpp>
-#include <cpp/XboxData.h>
+#include <cpp/MotorControlCommand.h>
 #include <cpp/Encoder.h>
 
 // interface library for RoboteQ 
@@ -16,6 +16,7 @@
 #define RIGHT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_2, true, true)
 #define ENCODER_TICKS_PER_ROTATION      (2048.0)
 #define DEADZONE                        (1)
+#define COMMAND_TIMEOUT_US              (500000)
 
 #include <misc.h>
 #include <unistd.h>
@@ -30,7 +31,7 @@ enum wheels_e
 };
 
 Encoder* encoder = NULL;
-XboxData* xbox_data_rx = NULL;
+MotorControlCommand* motor_control_command_rx = NULL;
 DriveTrain* drive_train = NULL;
 
 int clamp(int value, const int min, const int max) {
@@ -42,6 +43,13 @@ int clamp(int value, const int min, const int max) {
     return returnVal;
 }
 
+unsigned long get_us_timestamp(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return 1000000 * tv.tv_sec + tv.tv_usec;
+}
+
 double encoderDataToRPM(double encoderTicks, double timeDelta)
 {
     double rotations = encoderTicks / ENCODER_TICKS_PER_ROTATION; // number of rotations since last poll
@@ -49,7 +57,9 @@ double encoderDataToRPM(double encoderTicks, double timeDelta)
     return rpm;
 }
 
-uint64_t last_timestamp = -1;
+uint64_t last_encoder_timestamp = -1;
+uint64_t last_command_timestamp = -1;
+bool watchdog_triggered = false;
 
 double left_setpoint = 0.0;  // unit: RPM
 double right_setpoint = 0.0; // ...
@@ -61,7 +71,8 @@ mutex setpoint_mutex;
 mutex loop_mtx;
 
 void encoder_callback(void) {
-    double dt = encoder->timestamp - last_timestamp;
+    double dt = encoder->timestamp - last_encoder_timestamp;
+
     dt /= (60.0 * 1000000.0); // microseconds / minute
 
     double wheel_rpm[NUM_OF_WHEELS];
@@ -103,9 +114,11 @@ void encoder_callback(void) {
         cmd[i] = clamp(cmd[i], -1000, 1000);
     }
 
+#ifndef NDEBUG
     cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
     cout << "Setpoint: L " << setpoint[LEFT_WHEEL] << ", R " << setpoint[RIGHT_WHEEL] << endl;
     cout << "Output:   L " << cmd[LEFT_WHEEL] << ", R " << cmd[RIGHT_WHEEL] << endl << endl;
+#endif //NDEBUG
 
     loop_mtx.lock();
     LEFT_MOTOR_CMD(cmd[LEFT_WHEEL]);
@@ -117,34 +130,26 @@ void encoder_callback(void) {
         prev_cmd[i] = cmd[i];
     }
 
-    last_timestamp = encoder->timestamp;
+    last_encoder_timestamp = (uint64_t)encoder->timestamp;
 }
 
-void controller_callback(void) {
-    int left_stick = xbox_data_rx->y_joystick_left;
-    int right_stick = xbox_data_rx->y_joystick_right;
+void command_callback(void) {
+    int temp_left_setpoint = motor_control_command_rx->left;
+    int temp_right_setpoint = motor_control_command_rx->right;
+
+    last_command_timestamp = get_us_timestamp();
 
     //cout << right_motor << endl;
 
     //left_motor  = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
     //right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
 
-    double temp_left_setpoint = mapFloat(left_stick,  -32768, 32767, 50, -50);
-    double temp_right_setpoint = mapFloat(right_stick, -32768, 32767, 50, -50);
-
-    setpoint_mutex.lock();
-    left_setpoint = temp_left_setpoint;
-    right_setpoint = temp_right_setpoint;
-    setpoint_mutex.unlock();
-
-    if(xbox_data_rx->button_b) {
-        loop_mtx.lock();
-        for(int i : {0, 1, 2})
-        {
-            (void)i;
-            drive_train->wheelHalt(true, true);
-        }
-        exit(EXIT_SUCCESS);
+    if(!watchdog_triggered)
+    {
+        setpoint_mutex.lock();
+        left_setpoint = (double) temp_left_setpoint;
+        right_setpoint = (double) temp_right_setpoint;
+        setpoint_mutex.unlock();
     }
 }
 
@@ -155,10 +160,10 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    xbox_data_rx = new XboxData(
+    motor_control_command_rx = new MotorControlCommand(
         new CPJL("localhost", 14000), 
-        "xbox_data",
-        controller_callback
+        "motor_control_data",
+        command_callback
     );
 
     encoder = new Encoder(
@@ -175,8 +180,29 @@ int main(int argc, char* argv[]) {
     auto loop = CPJL_Message::loop();
     (void)loop;
 
-    // sleep forever
-    while(true) usleep(1000000);
+    // monitor for broken communication link
+    while(true)
+    {
+        uint64_t curTime = get_us_timestamp();
+        if((curTime - last_command_timestamp) < COMMAND_TIMEOUT_US)
+        {
+            // No watchdog trigger
+            watchdog_triggered = false;
+            usleep((last_command_timestamp + COMMAND_TIMEOUT_US) - curTime);
+        }
+        else
+        {
+            // Watchdog trigger
+            watchdog_triggered = true;
+
+            loop_mtx.lock();
+            LEFT_MOTOR_CMD(0);
+            RIGHT_MOTOR_CMD(0);
+            loop_mtx.unlock();
+
+            last_command_timestamp = curTime + COMMAND_TIMEOUT_US; // push out watchdog time to avoid a loop without sleep
+        }
+    }
 
     return 0;
 }
