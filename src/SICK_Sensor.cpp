@@ -176,7 +176,7 @@ auto SickSensor::getMeasurementResults(void) -> std::vector<float>& {
 auto SickSensor::getMeasurementResultsAsCartesian(void) -> std::vector<cart_t>& {
     this->_cart_meas_results_.clear();
 
-    for(int i = 0; i < this->_meas_results.size(); i++) {
+    for(uint32_t i = 0; i < this->_meas_results.size(); i++) {
         float ang = float(i-90) * 0.00872665f; // theres that magic number again
         float x = ang * cos(_meas_results[i]);
         float y = ang * sin(_meas_results[i]);
