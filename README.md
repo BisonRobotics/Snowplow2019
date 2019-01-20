@@ -7,7 +7,7 @@
 - sdl 1.2
   - `sudo apt install sdl1.2`
 - ubuntu 16.04
--CPJL
+- CPJL
 
 ### Lua is not currently needed or supported
 
