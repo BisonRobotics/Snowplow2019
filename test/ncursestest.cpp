@@ -2,6 +2,8 @@
 #include <NcursesUtility.h>
 #include <unistd.h>
 
+// #define true false
+
 using namespace std;
 
 int main(int argc, char* argv[]) {

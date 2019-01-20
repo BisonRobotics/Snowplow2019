@@ -37,9 +37,14 @@ void NcursesUtility::flip(void) {
 int  NcursesUtility::getRows(void) {               return this->rows; }
 int  NcursesUtility::getColumns(void) {            return this->columns; }
 
-int NcursesUtility::getCharacter(void) { return getch(); }
+int NcursesUtility::getCharacter(void) {
+    // not sure how to make ncurses blocking again... 
+    timeout(100000000); // 100000 seconds should do for now
+    return getch(); 
+}
+
 int NcursesUtility::getCharacter(int timeout) {
-    timeout(250);
+    timeout(timeout);
     return getch();
 }
 
@@ -123,3 +128,5 @@ void NcursesUtility::drawVerticalLine(int x_offset, int color) {
         this->place_char_at(i, x_offset, ' ');
     this->deactivate_color(color);
 }
+
+// 
