@@ -174,9 +174,9 @@ then
     g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit.exe \
     $STD_OPTS $INC_OPTS
 
-    echo "${CYN}  app/teleop"
-    g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
-    -o bin/teleop.exe $STD_OPTS $INC_OPTS
+    #echo "${CYN}  app/teleop"
+    #g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
+    #-o bin/teleop.exe $STD_OPTS $INC_OPTS
 
 
 elif [ $1 == --clean ] # delete all unneccessary files
