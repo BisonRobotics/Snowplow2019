@@ -1,5 +1,4 @@
 #include <iostream>
-// #include <ctime>
 #include <unistd.h>
 #include <sys/time.h>
 #include <cpp/PathVector.h>
