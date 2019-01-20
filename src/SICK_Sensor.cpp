@@ -151,6 +151,7 @@ bool SickSensor::scanDataToFloat(void) {
         if(this->_raw_string_buffer[i] == "DIST1") {
             dist1_index = i;
             num_readings = std::stoi(_raw_string_buffer[i+5], nullptr, 16);
+            break;
         }
     }
 
@@ -161,7 +162,7 @@ bool SickSensor::scanDataToFloat(void) {
     // DIST1 found, read the actual data
     this->_meas_results.clear();
     for(int i = 0; i < num_readings; i++) {
-        float val = (float)std::stoi(_raw_string_buffer[i + dist1_index + 5], nullptr, 16);
+        float val = (float)std::stoi(_raw_string_buffer[i + dist1_index + 6], nullptr, 16);
         this->_meas_results.push_back(val);
     }
 
