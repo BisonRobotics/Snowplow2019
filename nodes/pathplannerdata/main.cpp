@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        cout << "Incorrect argument:\n" << argv[1] << " TELEOP, SINGLEI, DOUBLEI\n";
+        cout << "Incorrect argument:\n" << argv[1] << " <'TELEOP', 'SINGLEI', 'DOUBLEI'>\n";
         exit(EXIT_FAILURE);
     }
 
