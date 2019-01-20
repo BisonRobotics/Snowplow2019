@@ -53,7 +53,7 @@ do
 done
 
 # some command line args for g++
-STD_OPTS="-std=c++11 -march=native -O3 -Wall -lSDL"
+STD_OPTS="-std=c++11 -march=native -O3 -Wall -lSDL -lncurses"
 INC_OPTS="-I./inc/" # the default directory for headers in this project
 
 if [ $1 == --all ]
@@ -174,9 +174,12 @@ then
     g++ test/sicksensormsgsplit.cpp ./lib/TCP_Connection.o ./lib/SICK_Sensor.o -o bin/sicksensormsgsplit.exe \
     $STD_OPTS $INC_OPTS
 
-    echo "${CYN}  app/teleop"
+    echo "${CYN}    test/ncursestest.cpp"
+    g++ test/ncursestest.cpp ./lib/NcursesUtility.o -o bin/ncursestest.exe $STD_OPTS $INC_OPTS
+
+    echo "${CYN}    app/teleop"
     g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
-    -o bin/teleop.exe $STD_OPTS $INC_OPTS
+    -o bin/teleop.exe -lncurses $STD_OPTS $INC_OPTS
 
 
 elif [ $1 == --clean ] # delete all unneccessary files

@@ -1,7 +1,20 @@
 #ifndef __JJC__MISC__H__
 #define __JJC__MISC__H__
 
+#include <string>
 #include <sys/time.h>
+
+std::string pad_left(std::string input, size_t sz) {
+    while(input.size() < sz)
+        input = " " + input;
+    return input;
+}
+
+std::string pad_right(std::string input, size_t sz) {
+    while(input.size() < sz)
+        input += " ";
+    return input;
+}
 
 float mapFloat(
         float input, 
