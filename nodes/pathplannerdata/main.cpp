@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 // CPJL interface layer and 
 // message type
@@ -19,8 +20,8 @@ ImuData* imu_data_rx = NULL;
 
 uint64_t last_timestamp = -1;
 
-
-void xbox_callback(void) {
+void xbox_callback(void) 
+{
     //receive data in xbox
     int left_motor 
         = xbox_data_rx->y_joystick_left;
@@ -49,7 +50,8 @@ void xbox_callback(void) {
     //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
 }
 
-void imu_callback(void) {
+void imu_callback(void) 
+{
     //receive data from IMU
     float x_acc 
         = imu_data_rx->x_acc;
@@ -62,24 +64,48 @@ void imu_callback(void) {
     float z_orient 
         = imu_data_rx->z_orient;
 
-    //?????
+    //TODO: Convert imu data to motor control commands
 
     
 }
 
-int main(int argc, char* argv[]) {
-
-    /*if(argc != 2) {
-        cout << "Usage:\n  " << argv[0] << " <roboteq mount location>\n";
+int main(int argc, char* argv[]) 
+{
+    if(argc != 2) {
+        cout << "Usage:\n  " << argv[0] << " <mode>\n";
         exit(EXIT_FAILURE);
-    }*/
+    }
 
-    //ADD - get priority for receiving data from the command arguments
+    //current mode as the second argument
+    string currentMode = argv[1];
 
-    xbox_data_rx = new XboxData(
+    //State machine for the modes' callbacks
+    //ignores unwanted data
+    if(currentMode == "TELEOP" )
+    {
+        xbox_data_rx = new XboxData(
+                new CPJL("localhost", 14000), 
+                "xbox_data",
+                xbox_callback
+            );
+    }
+    else if (currentMode == "SINGLEI" || currentMode == "DOUBLEI")
+    {
+        imu_data_rx = new ImuData(
+                new CPJL("localhost", 14000), 
+                "imu_data",
+                imu_callback
+            );
+    }
+    else
+    {
+        cout << "Incorrect argument:\n" << argv[1] << " TELEOP, SINGLEI, DOUBLEI\n";
+        exit(EXIT_FAILURE);
+    }
+
+    motor_control_command = new MotorControlCommand(
         new CPJL("localhost", 14000), 
-        "xbox_data",
-        xbox_callback
+        "motor_control_data"
     );
 
     // start the asynch loop
