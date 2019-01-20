@@ -115,34 +115,36 @@ void XboxController::update(void) {
     }
 }
 
-int16_t XboxController::getJoyX(xBox_STICK s) {
+int32_t XboxController::getJoyX(xBox_STICK s) {
     switch(s) {
         case xBox_LEFT:
             return leftJoystickX;
         case xBox_RIGHT:
             return rightJoystickX;
+        default:
+            throw std::invalid_argument("Argument value not recognized. Value: " + std::to_string((int)s));
     }
 }
 
-int16_t XboxController::getJoyY(xBox_STICK s) {
+int32_t XboxController::getJoyY(xBox_STICK s) {
     switch(s) {
         case xBox_LEFT:
             return leftJoystickY;
         case xBox_RIGHT:
             return rightJoystickY;
         default:
-            std::cerr << "ERROR in XboxControllerInterface" << std::endl;
-            exit(EXIT_FAILURE);
-            break;
+            throw std::invalid_argument("Argument value not recognized. Value: " + std::to_string((int)s));
     }
 }
 
-int16_t XboxController::getTrigger(xBox_STICK s) {
+int32_t XboxController::getTrigger(xBox_STICK s) {
     switch(s) {
         case xBox_LEFT:
             return leftTrigger;
         case xBox_RIGHT:
             return rightTrigger;
+        default:
+            throw std::invalid_argument("Argument value not recognized. Value: " + std::to_string((int)s));
     }
 }
 
@@ -169,6 +171,6 @@ bool XboxController::buttonPressed(xBox_BUTTON btn) {
         case xBox_L3:
             return this->btn_L3; break;
         default:
-            break;
+            throw std::invalid_argument("Argument value not recognized. Value: " + std::to_string((int)btn));
     }
 }
