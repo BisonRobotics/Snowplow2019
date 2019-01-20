@@ -177,10 +177,9 @@ then
     echo "${CYN}    test/ncursestest.cpp"
     g++ test/ncursestest.cpp ./lib/NcursesUtility.o -o bin/ncursestest.exe $STD_OPTS $INC_OPTS
 
-    echo "${CYN}    app/teleop"
-    g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
-    -o bin/teleop.exe -lncurses $STD_OPTS $INC_OPTS
-
+    #echo "${CYN}  app/teleop"
+    #g++ app/teleop.cpp ./lib/DriveTrain.o ./lib/serial-interface.o ./lib/XboxControllerInterface.o ./lib/RoboteqDevice.o \
+    #-o bin/teleop.exe $STD_OPTS $INC_OPTS
 
 elif [ $1 == --clean ] # delete all unneccessary files
 then
