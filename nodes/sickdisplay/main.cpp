@@ -17,7 +17,7 @@ SickMeasurement* sick_msg = NULL;
 // needs to be accessed by callback
 SDL_Surface* window = NULL;
 vector<pair<float, float>> cartesian_transform;
-const int visible_radius = 3000.0f; // millimeters (raw from SICK)
+const int visible_radius = 9000.0f; // millimeters (raw from SICK)
 int plot_color;
 bool display_window_open = false;
 
@@ -61,15 +61,15 @@ int main(int argc, char* argv[]) {
             // plot a single point onscreen at a given set of coordinates
             auto plot_point_on_screen = [](int x, int y, int color, SDL_Surface* win) {
                 SDL_Rect r;
-                //r.x = x-1;
-                //r.y = y-1;
-                //r.h = 3;
-                //r.w = 3;
+                r.x = x-1;
+                r.y = y-1;
+                r.h = 3;
+                r.w = 3;
 
-                r.x = x;
-                r.y = y;
-                r.h = 1;
-                r.w = 1;
+                //r.x = x;
+                //r.y = y;
+                //r.h = 1;
+                //r.w = 1;
 
                 SDL_FillRect(win, &r, color);
             };
