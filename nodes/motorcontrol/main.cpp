@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
     auto loop = CPJL_Message::loop();
     (void)loop;
 
-    // sleep forever
+    // monitor for broken communication link
     while(true)
     {
         uint64_t curTime = get_us_timestamp();

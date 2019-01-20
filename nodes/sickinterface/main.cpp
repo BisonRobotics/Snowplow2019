@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unistd.h>
+#include <cstring>
 
 // CPJL libs and message types
 #include <CPJL.hpp>
@@ -23,6 +24,7 @@ int main(int argc, char* argv[]) {
     sick_measure = new SickMeasurement(new CPJL("localhost", 14000), "sick_data");
 
 #ifdef TEST_MODE
+
     int current_value = 100;
     while(true) {
         // cap data at 2500 (2.5m)
@@ -50,12 +52,17 @@ int main(int argc, char* argv[]) {
         sick.scanData();
         auto& results = sick.getMeasurementResults();
 
-        // pack the data into our messages. this can prolly be replaced by a single system call
-        for(int i = 0; i < 541; i++)
-            sick_measure->data[i] = results[i];
+        // pack the data into our message. this can prolly be replaced by a single system call
+        //for(int i = 0; i < 541; i++)
+        //    sick_measure->data[i] = results[i];
+        
+        memcpy(sick_measure->data, &results[0], 541 * sizeof(float));
+        sick_measure->timestamp = UsecTimestamp();
 
         // (full) send that bad boy
         sick_measure->putMessage();
+
+        usleep(300000);
     }
 
 #endif // TEST_MODE
