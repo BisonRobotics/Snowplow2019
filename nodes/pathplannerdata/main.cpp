@@ -203,8 +203,10 @@ void auto_task_100ms(void)
         pathStatus->putMessage();
         cout << "completed vector: m: "<< pathStatus->mag << " d: " << pathStatus->dir << " " << pathStatus->status<< endl;
         cout<< "requesting New Vector" << endl;
+        return 0;
     }
 
+    cout << "left: " << left_wheel_cmd << " right: " << right_wheel_cmd << endl;
     motor_control_command->left = left_wheel_cmd;
     motor_control_command->right = right_wheel_cmd;
     motor_control_command->putMessage();
