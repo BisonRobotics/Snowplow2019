@@ -6,18 +6,8 @@
 
 // Visual Studio Code has a problem with size_t, the compiler 
 // does NOT, and we all know who is more important
-
-std::string pad_left(std::string input, size_t sz) {
-    while(input.size() < sz)
-        input = " " + input;
-    return input;
-}
-
-std::string pad_right(std::string input, size_t sz) {
-    while(input.size() < sz)
-        input += " ";
-    return input;
-}
+std::string pad_left(std::string input, size_t sz);
+std::string pad_right(std::string input, size_t sz);
 
 // should prolly just change the function name and all 
 // the occurances of it, but that is a task for another day
@@ -32,35 +22,18 @@ std::string pad_right(std::string input, size_t sz) {
 float mapFloat(
         float input, 
         float input_start,  float input_end, 
-        float output_start, float output_end) {
-
-    return output_start 
-            + ((output_end - output_start) 
-            / (input_end - input_start)) 
-            * (input - input_start);
-}
+        float output_start, float output_end);
 
 double mapDouble(
         double input,
         double input_start,  double input_end,
-        double output_start, double output_end) {
-
-    return output_start 
-            + ((output_end - output_start) 
-            / (input_end - input_start)) 
-            * (input - input_start);
-}
+        double output_start, double output_end);
 
 // it think this alternate form looks nicer. sue me
 #ifndef map_float
 #define map_float mapDouble
 #endif // map_float
 
-uint64_t UsecTimestamp(void) {
-    timeval tv;
-    gettimeofday(&tv, NULL);
-
-    return (tv.tv_sec * 1000000) + tv.tv_usec;
-}
+uint64_t UsecTimestamp(void);
 
 #endif // __JJC__MISC__H__
