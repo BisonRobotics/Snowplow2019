@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 #define ENCODER_TICKS_PER_ROTATION      (2048.0)
-#define WHEEL_CIRCUMFERENCE             (25.0) // meters
+#define WHEEL_CIRCUMFERENCE             (1.39) // meters
 #define AUTO_TASK_DELAY                 (1000 * 100) // us
 #define MAX_ROTATION_SPEED              (30.0) // RPM
 #define MAX_TRAVEL_SPEED                (50.0) // RPM
@@ -29,6 +29,7 @@ XboxData* xbox_data_rx = NULL;
 MotorControlCommand* motor_control_command = NULL;
 ImuData* imu_data_rx = NULL;
 PathVector* AutoVector = NULL;
+PathVector* pathStatus = NULL;
 Encoder* encoder = NULL;
 
 float current_x_acc = 0;
@@ -172,7 +173,7 @@ void auto_task_100ms(void)
     (void)local_current_z_vel;
 
     float rotation_command = local_requested_z_orient - (local_current_z_orient - last_z_orient);
-    
+
     // Rotation calulations
     float rotation_wheel_command = clamp((rotation_command / ROTATION_SLOWDOWN_ANGLE) * MAX_ROTATION_SPEED, -MAX_ROTATION_SPEED, MAX_ROTATION_SPEED);
     left_wheel_cmd += rotation_wheel_command;
@@ -195,9 +196,13 @@ void auto_task_100ms(void)
 
     if((abs(rotation_command) < 3) && (abs(travel_command) < 0.3))
     {
-        ;// Current command is done, send next command request
+        pathStatus->dir = diff;
+        pathStatus->mag = distanceTraveled_meters;
+        pathStatus->status = "ReachedTarget;SendNewVector";
+        pathStatus->putMessage();
+        cout<< "requesting New Vector" << endl;
     }
-    
+
     motor_control_command->left = left_wheel_cmd;
     motor_control_command->right = right_wheel_cmd;
     motor_control_command->putMessage();
@@ -242,6 +247,9 @@ int main(int argc, char* argv[])
                 new CPJL("localhost", 14000),
                 "encoder_data",
                 encoder_callback);
+        //the Response message node
+        pathStatus = new PathVector( new CPJL( "localhost", 14000),
+                                    "path_status");
     }else
     {
         cout << "Incorrect argument:\n" << argv[1] << " <'TELEOP', 'Auto'>\n";
