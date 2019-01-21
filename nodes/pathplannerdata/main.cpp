@@ -15,7 +15,7 @@
 
 #define ENCODER_TICKS_PER_ROTATION      (2048.0)
 #define WHEEL_CIRCUMFERENCE             (1.39) // meters
-#define AUTO_TASK_DELAY                 (1000 * 100) // us
+#define AUTO_TASK_DELAY                 (1000 * 1000) // us
 #define MAX_ROTATION_SPEED              (30.0) // RPM
 #define MAX_TRAVEL_SPEED                (50.0) // RPM
 #define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
@@ -138,6 +138,7 @@ void auto_callback(void){
     requested_z_orient = AutoVector->dir;
     requested_data_mtx.unlock();
 
+    cout<< "new vector recieved: m:" << AutoVector->mag << " d: " << AutoVector->dir << endl;
     imu_data_mtx.lock();
     last_z_orient = current_z_orient;
     imu_data_mtx.unlock();
@@ -157,12 +158,12 @@ void auto_task_100ms(void)
     imu_data_mtx.unlock();
 
     requested_data_mtx.lock();
-    float local_requested_z_orient = 0;
-    float local_requested_distance_traveled = 0;
+    float local_requested_z_orient = requested_z_orient;
+    float local_requested_distance_traveled = requested_distance_traveled;
     requested_data_mtx.unlock();
 
     encoder_data_mtx.lock();
-    float local_encoder_distance = 0;
+    float local_encoder_distance = encoder_distance;
     encoder_data_mtx.unlock();
 
     // Take care of compiler warnings
@@ -196,10 +197,11 @@ void auto_task_100ms(void)
 
     if((abs(rotation_command) < 3) && (abs(travel_command) < 0.3))
     {
-        pathStatus->dir = diff;
-        pathStatus->mag = distanceTraveled_meters;
-        pathStatus->status = "ReachedTarget;SendNewVector";
+        pathStatus->dir = rotation_command;
+        pathStatus->mag = travel_command;
+        pathStatus->status = "ReachedTarget";
         pathStatus->putMessage();
+        cout << "completed vector: m: "<< pathStatus->mag << " d: " << pathStatus->dir << " " << pathStatus->status<< endl;
         cout<< "requesting New Vector" << endl;
     }
 
