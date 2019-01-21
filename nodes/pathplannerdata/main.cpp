@@ -228,27 +228,26 @@ int main(int argc, char* argv[])
     if(currentMode == "TELEOP" )
     {
         xbox_data_rx = new XboxData(
-                new CPJL("localhost", 14000),
-                "xbox_data",
-                xbox_callback
-            );
+                    new CPJL("localhost", 14000),
+                    "xbox_data",
+                    xbox_callback);
 
     }else if (currentMode == "Auto")
     {
         AutoVector = new PathVector(
-                new CPJL("localhost", 14000),
-                "path_vector",
-                auto_callback);
+                    new CPJL("localhost", 14000),
+                    "path_vector",
+                    auto_callback);
 
         imu_data_rx = new ImuData(
-                new CPJL("localhost", 14000),
-                "imuData",
-                imu_calback);
+                    new CPJL("localhost", 14000),
+                    "imuData",
+                    imu_calback);
 
         encoder = new Encoder(
-                new CPJL("localhost", 14000),
-                "encoder_data",
-                encoder_callback);
+                    new CPJL("localhost", 14000),
+                    "encoder_data",
+                    encoder_callback);
         //the Response message node
         pathStatus = new PathVector( new CPJL( "localhost", 14000),
                                     "path_status");

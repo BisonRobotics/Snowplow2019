@@ -35,10 +35,10 @@ int main(int argc, char* argv[]) {
         imu->timestamp = (++timestamp_val);
 
         // grab all data from VecNav
-        auto cd = ex->currentData();
+        auto cd = ez->currentData();
 
-        // fill out appropriate message fields if data is 
-        // available. if no new data is ready, send the 
+        // fill out appropriate message fields if data is
+        // available. if no new data is ready, send the
         // previous value
         if(cd.hasYawPitchRoll()) {
             auto ypr = cd.yawPitchRoll();
