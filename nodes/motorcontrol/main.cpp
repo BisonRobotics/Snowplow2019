@@ -200,7 +200,8 @@ int main(int argc, char* argv[]) {
             RIGHT_MOTOR_CMD(0);
             loop_mtx.unlock();
 
-            last_command_timestamp = curTime + COMMAND_TIMEOUT_US; // push out watchdog time to avoid a loop without sleep
+            //last_command_timestamp = curTime + COMMAND_TIMEOUT_US; // push out watchdog time to avoid a loop without sleep
+            usleep(500000);
         }
     }
 
