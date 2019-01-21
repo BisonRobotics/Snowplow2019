@@ -1,17 +1,17 @@
 #include <iostream>
+#include <unistd.h>
 
 // CPJL interface layer and 
-// message type
+// message types
 #include <CPJL.hpp>
 #include <cpp/XboxData.h>
 #include <cpp/Encoder.h>
-#include <cpp/SickMeasurement.h>
 #include <cpp/ImuData.h>
+#include <cpp/PathVector.h>
 
-// interface library for RoboteQ 
-
+// utility lib, misc. functions
 #include <misc.h>
-#include <unistd.h>
+#include <NcursesUtility.h>
 
 using namespace std;
 
@@ -20,39 +20,61 @@ XboxData* xbox_data_rx = NULL;
 PathVector* path_vector = NULL;
 ImuData* imu_data_rx = NULL;
 
-uint64_t last_timestamp = -1;
-const double setpoint = 50.0; // unit: RPM
+int left_motor_raw;
+int right_motor_raw;
+int left_motor_cmd;
+int right_motor_cmd;
+
+float path_vector_mag;
+float path_vector_dir;
+
+int left_encoder;
+int right_encoder;
+
+float imu_x_acc;
+float imu_y_acc;
+float imu_x_vel;
+float imu_y_vel;
+float imu_z_orient;
+
+long int timestamp_encoder;
+long int timestamp_pathvector;
+long int timestamp_imudata;
 
 void encoder_callback(void) 
 {
-    int left = encoder->left;
-    int right = encoder->right;
+    left_encoder = encoder_data_rx->left;
+    right_encoder = encoder_data_rx->right;
+    timestamp_encoder = encoder_data_rx->timestamp;
 
     //send data to display
 }
 
 void xbox_callback(void) 
 {
-    int left_motor = xbox_data_rx->y_joystick_left;
-    int right_motor = xbox_data_rx->y_joystick_right;
+    left_motor_raw = xbox_data_rx->y_joystick_left;
+    right_motor_raw = xbox_data_rx->y_joystick_right;
 
-    left_motor = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
-    right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
+    left_motor_cmd = (int)mapFloat(left_motor_raw, -32768, 32767, -50, 50);
+    right_motor_cmd = (int)mapFloat(right_motor_raw, -32768, 32767, -50, 50);
 
-    //send data to display
-
-    if(xbox_data_rx->button_b) {
-        for(int i : {0, 1, 2})
-            drive_train->wheelHalt(true, true);
-        exit(EXIT_SUCCESS);
-    }
-
-    //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
 }
 
-void auto_callback(void)
+void pathvector_callback(void)
 {
+    path_vector_mag = path_vector->mag;
+    path_vector_dir = path_vector->dir;
 
+    timestamp_pathvector = path_vector->timestamp;
+}
+
+void imu_callback(void)
+{
+    imu_x_acc = imu_data_rx->x_acc;
+    imu_y_acc = imu_data_rx->y_acc;
+    imu_x_vel = imu_data_rx->x_vel;
+    imu_y_vel = imu_data_rx->y_vel;
+    imu_z_orient = imu_data_rx->z_orient;
 }
 
 int main(int argc, char* argv[]) {
@@ -62,16 +84,28 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    xbox_data_rx = new XboxData(
-        new CPJL("localhost", 14000), 
-        "xbox_data",
-        callback
-    );
-
-    encoder = new Encoder(
+    encoder_data_rx = new Encoder(
         new CPJL("localhost", 14000),
         "encoder_data",
         encoder_callback
+    );
+
+    xbox_data_rx = new XboxData(
+        new CPJL("localhost", 14000), 
+        "xbox_data",
+        xbox_callback
+    );
+
+    path_vector = new PathVector(
+            new CPJL("localhost", 14000),
+            "pathvector_data",
+            pathvector_callback
+    );
+
+    imu_data_rx = new ImuData(
+        new CPJL("localhost", 14000),
+        "imu_data",
+        imu_callback    
     );
 
 
