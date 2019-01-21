@@ -13,6 +13,16 @@
 #include <misc.h>
 #include <unistd.h>
 
+#define ENCODER_TICKS_PER_ROTATION      (2048.0)
+#define WHEEL_CIRCUMFERENCE             (25.0) // meters
+#define AUTO_TASK_DELAY                 (1000 * 100) // us
+#define MAX_ROTATION_SPEED              (30.0) // RPM
+#define MAX_TRAVEL_SPEED                (50.0) // RPM
+#define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
+#define TRAVEL_SLOWDOWN_DISTANCE        (1.0)  // meters
+#define abs(x) ((x < 0) ? -x : x)
+
+
 using namespace std;
 
 XboxData* xbox_data_rx = NULL;
@@ -21,19 +31,36 @@ ImuData* imu_data_rx = NULL;
 PathVector* AutoVector = NULL;
 Encoder* encoder = NULL;
 
-uint64_t last_timestamp = -1;
+float current_x_acc = 0;
+float current_y_acc = 0;
+float current_x_vel = 0;
+float current_y_vel = 0;
+float current_z_vel = 0;
+float current_z_orient = 0;
+float last_z_orient = 0;
+float requested_z_orient = 0;
+float distanceTraveled_x_meters = 0;
+float distanceTraveled_y_meters = 0;
+float requested_distance_traveled = 0;
+float encoder_distance = 0;
 
-#define ENCODER_TICKS_PER_ROTATION      (2048.0)
-#define WHEEL_CIRCUMFERENCE  25.0 // meters
+mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx;
 
-float current_x_acc;
-float current_y_acc;
-float current_x_vel;
-float current_y_vel;
-float current_z_orient;
-float last_z_orient;
-float distanceTraveled_meters;
+int clamp(int value, const int min, const int max) {
+    int returnVal = value;
+    if(value > max)
+        returnVal = max;
+    else if(value < min)
+        returnVal = min;
+    return returnVal;
+}
 
+uint64_t get_us_timestamp(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return 1000000 * tv.tv_sec + tv.tv_usec;
+}
 
 void xbox_callback(void)
 {
@@ -67,14 +94,25 @@ void xbox_callback(void)
 
 void imu_calback(void)
 {
+    static uint64_t last_timestamp = get_us_timestamp();
+    static float last_z_orient = current_z_orient;
+    uint64_t current_time = imu_data_rx->timestamp;
+
+    // Calculate Z velocity
+    float temp_current_z_vel = ((imu_data_rx->z_orient - last_z_orient) / (current_time - last_timestamp)) / 1000000; // Deg/microsecond to deg/sec
+
     //receive data from IMU
+    imu_data_mtx.lock();
     current_x_acc = imu_data_rx->x_acc;
     current_y_acc = imu_data_rx->y_acc;
     current_x_vel = imu_data_rx->x_vel;
     current_y_vel = imu_data_rx->y_vel;
     current_z_orient = imu_data_rx->z_orient;
+    current_z_vel = temp_current_z_vel;
+    imu_data_mtx.unlock();
 
-    //TODO: Convert imu data to motor control commands
+    last_timestamp = current_time;
+    last_z_orient = imu_data_rx->z_orient;
 }
 
 void encoder_callback(void){
@@ -82,7 +120,10 @@ void encoder_callback(void){
     double rotations = encoder->left / ENCODER_TICKS_PER_ROTATION;
     rotations += encoder->right / ENCODER_TICKS_PER_ROTATION;
     rotations /=2; // get the average rotations of the encoders
-    distanceTraveled_meters = rotations * WHEEL_CIRCUMFERENCE;
+
+    encoder_data_mtx.lock();
+    encoder_distance += rotations * WHEEL_CIRCUMFERENCE;
+    encoder_data_mtx.unlock();
 }
 
 /**
@@ -91,35 +132,82 @@ void encoder_callback(void){
 void auto_callback(void){
 
     //get target info
-    float targetDistance = AutoVector->mag;
-    float targetDirection = AutoVector->dir;
-    int left_motor_speed = 0; // defualt to full stop
-    int right_motor_speed = 0;
+    requested_data_mtx.lock();
+    requested_distance_traveled = AutoVector->mag;
+    requested_z_orient = AutoVector->dir;
+    requested_data_mtx.unlock();
 
-    //check if we are facing the right direction
-    float diff = current_z_orient - targetDirection;
-    if (abs(diff) < 1){
-        //drive forward
-        left_motor_speed  = 30;
-        right_motor_speed = 30;
-    }else if (diff < 0 ) {// if dif is negative spin clockwise
-        distanceTraveled_meters =0;
-        left_motor_speed  = 10;
-        right_motor_speed = -10;
-    }else if (diff > 0){ // if dif is positive spin counter clockwise
-        distanceTraveled_meters =0;
-        left_motor_speed  = -10;
-        right_motor_speed = 10;
+    imu_data_mtx.lock();
+    last_z_orient = current_z_orient;
+    imu_data_mtx.unlock();
+}
+
+void auto_task_100ms(void)
+{
+    float left_wheel_cmd = 0, right_wheel_cmd = 0;
+
+    imu_data_mtx.lock();
+    float local_current_x_acc = current_x_acc;
+    float local_current_y_acc = current_y_acc;
+    float local_current_x_vel = current_x_vel;
+    float local_current_y_vel = current_y_vel;
+    float local_current_z_vel = current_z_vel;
+    float local_current_z_orient = current_z_orient;
+    imu_data_mtx.unlock();
+
+    requested_data_mtx.lock();
+    float local_requested_z_orient = 0;
+    float local_requested_distance_traveled = 0;
+    requested_data_mtx.unlock();
+
+    encoder_data_mtx.lock();
+    float local_encoder_distance = 0;
+    encoder_data_mtx.unlock();
+
+    // Take care of compiler warnings
+    (void)local_current_x_acc;
+    (void)local_current_y_acc;
+    (void)local_current_x_vel;
+    (void)local_current_y_vel;
+    (void)local_current_z_vel;
+
+    float rotation_command = local_requested_z_orient - (local_current_z_orient - last_z_orient);
+    
+    // Rotation calulations
+    float rotation_wheel_command = clamp((rotation_command / ROTATION_SLOWDOWN_ANGLE) * MAX_ROTATION_SPEED, -MAX_ROTATION_SPEED, MAX_ROTATION_SPEED);
+    left_wheel_cmd += rotation_wheel_command;
+    right_wheel_cmd -= rotation_wheel_command;
+
+    // Distance calculations
+    float travel_command = local_requested_distance_traveled - local_encoder_distance;
+    // Can be improved
+    if(abs(rotation_command) < 3.0)
+    {
+        float travel_wheel_command = clamp(
+            ((travel_command / (TRAVEL_SLOWDOWN_DISTANCE)) * MAX_TRAVEL_SPEED),
+            -MAX_TRAVEL_SPEED,
+            MAX_TRAVEL_SPEED
+        );
+
+        left_wheel_cmd += travel_wheel_command;
+        right_wheel_cmd += travel_wheel_command;
     }
 
-
-    motor_control_command->left = left_motor_speed;
-    motor_control_command->right = right_motor_speed;
+    if((abs(rotation_command) < 3) && (abs(travel_command) < 0.3))
+    {
+        ;// Current command is done, send next command request
+    }
+    
+    motor_control_command->left = left_wheel_cmd;
+    motor_control_command->right = right_wheel_cmd;
     motor_control_command->putMessage();
+
 }
 
 int main(int argc, char* argv[])
 {
+    uint64_t next_run_time = -1;
+
     if(argc != 2) {
         cout << "Usage:\n  " << argv[0] << " <mode>\n";
         exit(EXIT_FAILURE);
@@ -167,10 +255,20 @@ int main(int argc, char* argv[])
 
     // start the asynch loop
     auto loop = CPJL_Message::loop();
+    (void)loop;
 
-    // sleep forever
+    // Run 1ms task every 1ms
+    next_run_time = get_us_timestamp();
     while(true)
-        usleep(1000000);
-
+    {
+        uint64_t curTime = get_us_timestamp();
+        if(curTime < next_run_time)
+        {
+            // Sleep until next run time
+            usleep(next_run_time - curTime);
+        }
+        next_run_time += AUTO_TASK_DELAY;
+        auto_task_100ms();
+    }
     return 0;
 }

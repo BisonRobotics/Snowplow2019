@@ -43,7 +43,7 @@ int clamp(int value, const int min, const int max) {
     return returnVal;
 }
 
-unsigned long get_us_timestamp(void)
+uint64_t get_us_timestamp(void)
 {
     struct timeval tv;
     gettimeofday(&tv,NULL);
