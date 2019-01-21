@@ -1,14 +1,16 @@
 # Snowplow2019
 
-### Dependecies ###
+## Dependencies
 
 - git
   - `sudo apt install git`
 - sdl 1.2
   - `sudo apt install sdl1.2`
 - ubuntu 16.04
+- CPJL
 
-## Lua is not currently needed or supported ##
+### Lua is not currently needed or supported
+
 - lua5.1
   - `sudo apt install lua5.1`
   - `sudo apt install liblua5.1-0`
@@ -16,16 +18,19 @@
   - `sudo apt install liblua5.1-0-dbg`
   - `sudo apt install lua5.1-doc`
 
-### Building ###
-# CPJL (From CPJL/lib/server/v3)
+## Building
+
+### CPJL (From CPJL/lib/server/v3)
+
 `bash build.sh`
 
-# Snowplow code (from Snowplow2019)
+### Snowplow code (from Snowplow2019)
+
 `bash build.sh --lib`
 `bash build.sh --bin`
 `bash build.sh --nodes`
 
-### Adding udev rules ###
+### Adding udev rules
 
 - add udev files to:
 
@@ -35,19 +40,22 @@
 
     `sudo udevadm control --reload-rules`
 
-### Computer login ###
+## Snowplow Creds
+
+### Computer login
 
 username: thundar
+
 password: password
 
-### Router login ###
+### Router login
 
 Address: 192.168.0.2
 
 username: admin
 password: admin
 
-### Remote login ###
+### wifi login
 
 connect to `hide yo kids, hide you Wifi` network
 password is `password` *Very secure*

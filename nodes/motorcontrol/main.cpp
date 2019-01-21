@@ -2,13 +2,13 @@
 #include <mutex>
 #include <fstream>
 
-// CPJL interface layer and 
+// CPJL interface layer and
 // message type
 #include <CPJL.hpp>
 #include <cpp/MotorControlCommand.h>
 #include <cpp/Encoder.h>
 
-// interface library for RoboteQ 
+// interface library for RoboteQ
 // motor controller
 #include <DriveTrain.h>
 
@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     }
 
     motor_control_command_rx = new MotorControlCommand(
-        new CPJL("localhost", 14000), 
+        new CPJL("localhost", 14000),
         "motor_control_data",
         command_callback
     );
