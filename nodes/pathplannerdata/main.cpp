@@ -19,12 +19,13 @@ XboxData* xbox_data_rx = NULL;
 MotorControlCommand* motor_control_command = NULL;
 ImuData* imu_data_rx = NULL;
 PathVector* AutoVector = NULL;
+PathVector* pathStatus = NULL;
 Encoder* encoder = NULL;
 
 uint64_t last_timestamp = -1;
 
 #define ENCODER_TICKS_PER_ROTATION      (2048.0)
-#define WHEEL_CIRCUMFERENCE  25.0 // meters
+#define WHEEL_CIRCUMFERENCE             (1.39) // meters
 
 float current_x_acc;
 float current_y_acc;
@@ -91,6 +92,7 @@ void encoder_callback(void){
 void auto_callback(void){
 
     //get target info
+    cout << "received new message: Mag: "<< AutoVector->mag << " Dir: "<< AutoVector->dir<< endl;
     float targetDistance = AutoVector->mag;
     float targetDirection = AutoVector->dir;
     int left_motor_speed = 0; // defualt to full stop
@@ -112,10 +114,19 @@ void auto_callback(void){
         right_motor_speed = 10;
     }
 
-
-    motor_control_command->left = left_motor_speed;
-    motor_control_command->right = right_motor_speed;
-    motor_control_command->putMessage();
+    if(abs(distanceTraveled_meters - targetDirection) <= .1 ){
+        //request new vector. we reached destination
+        pathStatus->dir = diff;
+        pathStatus->mag = distanceTraveled_meters;
+        pathStatus->status = "ReachedTarget;SendNewVector";
+        pathStatus->putMessage();
+        cout<< "requesting New Vector" << endl;
+    }else{
+        // otherwise drive to vector
+        motor_control_command->left = left_motor_speed;
+        motor_control_command->right = right_motor_speed;
+        motor_control_command->putMessage();
+    }
 }
 
 int main(int argc, char* argv[])
@@ -154,6 +165,9 @@ int main(int argc, char* argv[])
                 new CPJL("localhost", 14000),
                 "encoder_data",
                 encoder_callback);
+        //the Response message node
+        pathStatus = new PathVector( new CPJL( "localhost", 14000),
+                                    "path_status");
     }else
     {
         cout << "Incorrect argument:\n" << argv[1] << " <'TELEOP', 'Auto'>\n";

@@ -7,12 +7,27 @@
 
 // compiler takes care of showing us where these are
 PathVector* nextPathVector = NULL;
-
+PathVector* pathResponse = NULL;
+bool sendNewVector = false;
+bool sendAvoidanceVector =false;
+std::string reachTarget = "ReachedTarget;SendNewVector";
+std::string obsticalString = "AHHH_Theres_an_obsitacal";
 
 uint64_t getTimeStamp(void ){
     timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+}
+
+void response_callback(void){
+
+    if(reachTarget.compare(pathResponse->status)== 0){
+        sendNewVector= true;
+    }else if (obsticalString.compare(pathResponse->status) == 0){
+        sendAvoidanceVector =true;
+    }else{
+        sendNewVector = false;
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -27,9 +42,14 @@ int main(int argc, char* argv[]) {
 
     nextPathVector = new PathVector( new CPJL(argv[1], 14000),
                                     "path_vector");
+
+    pathResponse = new PathVector( new CPJL( "localhost", 14000),
+                                    "path_status",
+                                    response_callback);
     float  mag, dir;
     std::string line;
     size_t pos = 0;
+    sendNewVector = true;
 
     if (vectorFile.is_open()){
         while (std::getline(vectorFile, line)) {
@@ -37,15 +57,18 @@ int main(int argc, char* argv[]) {
             mag = std::stof(line.substr(0, pos = line.find(","))) ;
             std::cout << "magnitude: " << mag<< " " ;
             dir = std::stof(line.substr(pos+1));
-            std::cout << "dir: " << dir << std::endl; ;
+            std::cout << "dir: " << dir << std::endl;
 
-            // recieve status message
+            while(!sendNewVector){
+                usleep(100000); // wait for status message
+            }
+
             nextPathVector->mag = mag;
             nextPathVector->dir = dir;
             nextPathVector->status = "SendingNextTansition";
             nextPathVector->putMessage();
+            sendNewVector =false;
 
-            usleep(10000);
         }
     }
 
