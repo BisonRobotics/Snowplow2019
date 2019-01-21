@@ -183,26 +183,26 @@ int main(int argc, char* argv[]) {
     // monitor for broken communication link
     while(true)
     {
-        uint64_t curTime = get_us_timestamp();
-        if((curTime - last_command_timestamp) < COMMAND_TIMEOUT_US)
-        {
-            // No watchdog trigger
-            watchdog_triggered = false;
-            usleep((last_command_timestamp + COMMAND_TIMEOUT_US) - curTime);
-        }
-        else
-        {
-            // Watchdog trigger
-            watchdog_triggered = true;
+        // uint64_t curTime = get_us_timestamp();
+        // if((curTime - last_command_timestamp) < COMMAND_TIMEOUT_US)
+        // {
+        //     // No watchdog trigger
+        //     watchdog_triggered = false;
+        //     usleep((last_command_timestamp + COMMAND_TIMEOUT_US) - curTime);
+        // }
+        // else
+        // {
+        //     // Watchdog trigger
+        //     watchdog_triggered = true;
 
-            loop_mtx.lock();
-            LEFT_MOTOR_CMD(0);
-            RIGHT_MOTOR_CMD(0);
-            loop_mtx.unlock();
+        //     loop_mtx.lock();
+        //     LEFT_MOTOR_CMD(0);
+        //     RIGHT_MOTOR_CMD(0);
+        //     loop_mtx.unlock();
 
             //last_command_timestamp = curTime + COMMAND_TIMEOUT_US; // push out watchdog time to avoid a loop without sleep
             usleep(500000);
-        }
+        // }
     }
 
     return 0;
