@@ -6,8 +6,8 @@
 #include <fstream>
 
 // compiler takes care of showing us where these are
-PathVector* nextPathVector = NULL;
-PathVector* pathResponse = NULL;
+PathVector* nextPathVector_tx = NULL;
+PathVector* path_Response_rx = NULL;
 bool sendNewVector = false;
 bool sendAvoidanceVector =false;
 std::string reachTarget = "ReachedTarget";
@@ -28,24 +28,24 @@ void response_callback(void){
 
     std::cout << "new vector Requested" <<std::endl;
 
-    if(reachTarget.compare(pathResponse->status)== 0){
+    if(reachTarget.compare(path_Response_rx->status)== 0){
         if(vectIndex < mag_vect.size())
         {
-            nextPathVector->mag = mag_vect[vectIndex];
-            nextPathVector->dir = dir_vect[vectIndex];
-            nextPathVector->status = "SendingNextTansition";
-            nextPathVector->putMessage();
+            nextPathVector_tx->mag = mag_vect[vectIndex];
+            nextPathVector_tx->dir = dir_vect[vectIndex];
+            nextPathVector_tx->status = "SendingNextTansition";
+            nextPathVector_tx->putMessage();
             std::cout << "sending new vector" << std::endl;
             vectIndex ++;
         } else
         {
-            nextPathVector->mag = mag_vect[vectIndex];
-            nextPathVector->dir = dir_vect[vectIndex];
-            nextPathVector->status = "out of vectors";
-            nextPathVector->putMessage();
+            nextPathVector_tx->mag = mag_vect[vectIndex];
+            nextPathVector_tx->dir = dir_vect[vectIndex];
+            nextPathVector_tx->status = "out of vectors";
+            nextPathVector_tx->putMessage();
         }
 
-    }else if (obsticalString.compare(pathResponse->status) == 0){
+    }else if (obsticalString.compare(path_Response_rx->status) == 0){
         sendAvoidanceVector =true;
     }else{
         sendNewVector = false;
@@ -63,10 +63,10 @@ int main(int argc, char* argv[]) {
 
     std::ifstream vectorFile (argv[1]);
 
-    nextPathVector = new PathVector( new CPJL("localhost", 14000),
+    nextPathVector_tx = new PathVector( new CPJL("localhost", 14000),
                                     "path_vector");
 
-    pathResponse = new PathVector( new CPJL( "localhost", 14000),
+    path_Response_rx = new PathVector( new CPJL( "localhost", 14000),
                                     "path_status",
                                     response_callback);
     float  tmpmag, tmpdir;
