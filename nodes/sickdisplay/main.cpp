@@ -8,6 +8,8 @@
 #include <SICK_Sensor.h>         // for accessing the SICK scanner
 #include <misc.h>                // mapFloat and friends
 
+#include "main.h"
+
 using namespace std;
 
 #define WINDOW_SZ 650
@@ -17,7 +19,7 @@ SickMeasurement* sick_msg = NULL;
 // needs to be accessed by callback
 SDL_Surface* window = NULL;
 vector<pair<float, float>> cartesian_transform;
-const int visible_radius = 9000.0f; // millimeters (raw from SICK)
+const int visible_radius = 7500.0f; // millimeters (raw from SICK)
 int plot_color;
 bool display_window_open = false;
 
@@ -25,6 +27,10 @@ bool display_window_open = false;
 void draw_reference_lines(SDL_Surface* win, int color);
 int reference_color;
 int coord_color;
+
+void draw_snowplow_body(SDL_Surface* win, int color);
+int snowplow_color;
+int warning_zone_color;
 
 long int previous_timestamp = 0;
 
@@ -34,6 +40,25 @@ int main(int argc, char* argv[]) {
         cout << "Usage: " << argv[0] << " <CPJL host location>\n";
         exit(EXIT_FAILURE);
     }
+
+    // tf the positional data
+    for(auto& r : snowplow_list) {
+        tf_snowplow_list.push_back({
+            map_float(r.x, -visible_radius, visible_radius, 0, WINDOW_SZ),
+            map_float(r.y, -visible_radius, visible_radius, WINDOW_SZ, 0),
+            map_float(r.h, 0.0f, 2*visible_radius, 0, WINDOW_SZ),
+            map_float(r.w, 0.0f, 2*visible_radius, 0, WINDOW_SZ)
+            //map_float(r.h, -visible_radius, visible_radius, 0, WINDOW_SZ),
+            //map_float(r.w, -visible_radius, visible_radius, 0, WINDOW_SZ)
+        });
+    }
+
+    warning_zone = {
+        map_float(-1500.0f, -visible_radius, visible_radius, 0, WINDOW_SZ),
+        map_float(3000.0f, -visible_radius, visible_radius, WINDOW_SZ, 0),
+        map_float(4500.0f, 0.0f, 2*visible_radius, 0, WINDOW_SZ),
+        map_float(3000.0f, 0.0f, 2*visible_radius, 0, WINDOW_SZ)
+    };
 
     sick_msg = new SickMeasurement(new CPJL(argv[1], 14000), "sick_data", 
         []() {
@@ -76,6 +101,7 @@ int main(int argc, char* argv[]) {
 
             // clear and draw lines
             SDL_FillRect(window, NULL, 0x00000000);
+            draw_snowplow_body(window, snowplow_color);
             draw_reference_lines(window, reference_color);
 
             // now those coordinates need to be mapped onto the screen surface
@@ -107,9 +133,11 @@ int main(int argc, char* argv[]) {
     display_window_open = true;
 
     // specify the color
-    plot_color = SDL_MapRGB(window->format, 255, 0, 0);          // red
+    plot_color      = SDL_MapRGB(window->format, 255, 0, 0);     // red
     reference_color = SDL_MapRGB(window->format, 255, 255, 255); // white
-    coord_color = SDL_MapRGB(window->format, 64, 64, 64);        // grey
+    coord_color     = SDL_MapRGB(window->format, 64, 64, 64);    // grey
+    snowplow_color  = SDL_MapRGB(window->format, 0, 0, 255);   // idgaf
+    warning_zone_color = SDL_MapRGB(window->format, 0, 88, 0);
 
     CPJL_Message::loop();
 
@@ -121,9 +149,28 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
+void draw_snowplow_body(SDL_Surface* win, int color) {
+    SDL_Rect rect;
+    
+    rect.x = warning_zone.x;
+    rect.y = warning_zone.y;
+    rect.h = warning_zone.h;
+    rect.w = warning_zone.w;
+
+    SDL_FillRect(win, &rect, warning_zone_color);
+
+    for(auto& r : tf_snowplow_list) {
+        rect.x = r.x;
+        rect.y = r.y;
+        rect.h = r.h;
+        rect.w = r.w;
+
+        SDL_FillRect(win, &rect, color);
+    }
+}
+
 void draw_reference_lines(SDL_Surface* win, int color) {
     SDL_Rect r;
-
     const int half_x = WINDOW_SZ / 2;
 
     for(int i = -visible_radius; i <= visible_radius; i += 1000) {

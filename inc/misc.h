@@ -14,6 +14,8 @@ float mapFloat(
             * (input - input_start);
 }
 
+#define map_float mapFloat
+
 double mapDouble(
         double input,
         double input_start,  double input_end,
