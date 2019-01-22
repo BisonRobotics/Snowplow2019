@@ -79,11 +79,6 @@ void imu_callback(void)
 
 int main(int argc, char* argv[]) {
 
-    if(argc != 2) {
-        cout << "Usage:\n  " << argv[0] << " <roboteq mount location>\n";
-        exit(EXIT_FAILURE);
-    }
-
     encoder_data_rx = new Encoder(
         new CPJL("localhost", 14000),
         "encoder_data",
@@ -108,7 +103,51 @@ int main(int argc, char* argv[]) {
         imu_callback    
     );
 
+    //Printing to screen
+    NcursesUtility nu;
 
+    auto solid_red =           nu.initializeSolidColor(COLOR_RED);
+    auto box_color =           nu.initializeSolidColor(COLOR_WHITE);
+    auto primary_lettering =   nu.initializeColor(COLOR_BLUE, COLOR_BLACK);
+    auto secondary_lettering = nu.initializeColor(COLOR_CYAN, COLOR_BLACK);
+
+
+    bool looping = true;
+    while(looping) {
+        nu.clear();
+
+        nu.displayStringAt("Joystick", 1, 2, primary_lettering);
+        nu.displayStringAt("Left Motor Raw: " + to_string(left_motor_raw), 2, 2, secondary lettering);
+        nu.displayStringAt("Right Motor Raw" + to_string(right_motor_raw), 3, 2, secondary_lettering);
+        nu.displayStringAt("Left Motor CMD: " + to_string(left_motor_cmd), 4, 2, secondary lettering);
+        nu.displayStringAt("Right Motor CMD" + to_string(right_motor_cmd), 5, 2, secondary_lettering);
+        
+        nu.displayStringAt("En
+        coder", 7, 2, primary_lettering);
+        nu.displayStringAt("Left: " + to_string(left_encoder),8,2,secondary_lettering);
+        nu.displayStringAt("Right: " + to_string(right_encoder),9,2,secondary_lettering);
+        nu.displayStringAt("  Timestamp: " + to_string(timestamp_encoder), 10, 2, primary_lettering);
+
+        nu.displayStringAt("IMU",12,2,primary_lettering);
+        nu.displayStringAt("X Accel: " + to_string(imu_x_acc) + " m/s^2",13,2,secondary_lettering);
+        nu.displayStringAt("Y Accel: "+ to_string(imu_y_acc) + " m/s^2",14,2,secondary_lettering);
+        nu.displayStringAt("X Vel: " + to_string(imu_x_vel) + " m/s", 15,2, secondary_lettering);
+        nu.displayStringAt("Y Vel: " + to_string(imu_y_vel) + " m/s",16,2, secondary_lettering);
+        nu.displayStringAt("Z Orient: " + to_string(imu_z_orient)+ "degradians",17,2,secondary_lettering);
+
+        nu.displayStringAt("Path Vector",19,2,primary_lettering);
+        nu.displayStringAt("Magn: " + to_string(path_vector_mag,20,2,secondary_lettering);
+        nu.displayStringAt("Dir: " + to_string(path_vector_dir),21,2,secondary_lettering);
+
+
+
+        nu.flip();
+        
+        // ~10Hz
+        if(nu.getCharacter(100) == 27)
+            looping = false;
+
+    }
 
     // start the asynch loop
     auto loop = CPJL_Message::loop();
