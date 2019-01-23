@@ -30,6 +30,9 @@
 `bash build.sh --bin`
 `bash build.sh --nodes`
 
+or:
+`./build.sh --all`
+
 ### Adding udev rules
 
 - add udev files to:
