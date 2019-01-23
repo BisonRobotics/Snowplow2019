@@ -141,9 +141,6 @@ void command_callback(void) {
 
     //cout << right_motor << endl;
 
-    //left_motor  = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
-    //right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
-
     if(!watchdog_triggered)
     {
         setpoint_mutex.lock();
