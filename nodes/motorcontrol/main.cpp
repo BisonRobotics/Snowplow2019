@@ -6,7 +6,6 @@
 // message type
 #include <CPJL.hpp>
 #include <cpp/MotorControlCommand.h>
-#include <cpp/Encoder.h>
 
 // interface library for RoboteQ
 // motor controller
@@ -30,7 +29,6 @@ enum wheels_e
     NUM_OF_WHEELS
 };
 
-Encoder* encoder = NULL;
 MotorControlCommand* motor_control_command_rx = NULL;
 DriveTrain* drive_train = NULL;
 
@@ -70,68 +68,6 @@ const int adjust_amount = 10; // higher value will react faster but may oscillat
 mutex setpoint_mutex;
 mutex loop_mtx;
 
-void encoder_callback(void) {
-    double dt = encoder->timestamp - last_encoder_timestamp;
-
-    dt /= (60.0 * 1000000.0); // microseconds / minute
-
-    double wheel_rpm[NUM_OF_WHEELS];
-    double setpoint[NUM_OF_WHEELS];
-    static double prev_cmd[NUM_OF_WHEELS];
-    double cmd[NUM_OF_WHEELS];
-
-
-    // Get wheel RPM
-    wheel_rpm[LEFT_WHEEL]  = encoderDataToRPM(encoder->left, dt);
-    wheel_rpm[RIGHT_WHEEL] = encoderDataToRPM(encoder->right, dt);
-
-    // Make local copy of setpoints
-    setpoint_mutex.lock();
-    setpoint[LEFT_WHEEL] = left_setpoint;
-    setpoint[RIGHT_WHEEL] = right_setpoint;
-    setpoint_mutex.unlock();
-
-
-    for(int i=0; i<NUM_OF_WHEELS; i++)
-    {
-        if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
-        {
-            if(wheel_rpm[i] < setpoint[i])
-            {
-                double error = setpoint[i] - wheel_rpm[i];
-                cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
-            }
-            else
-            {
-                double error = wheel_rpm[i] - setpoint[i];
-                cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
-            }
-        }
-        else
-        {
-            cmd[i] = 0;
-        }
-        cmd[i] = clamp(cmd[i], -1000, 1000);
-    }
-
-#ifndef NDEBUG
-    cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
-    cout << "Setpoint: L " << setpoint[LEFT_WHEEL] << ", R " << setpoint[RIGHT_WHEEL] << endl;
-    cout << "Output:   L " << cmd[LEFT_WHEEL] << ", R " << cmd[RIGHT_WHEEL] << endl << endl;
-#endif //NDEBUG
-
-    loop_mtx.lock();
-    LEFT_MOTOR_CMD(cmd[LEFT_WHEEL]);
-    RIGHT_MOTOR_CMD(cmd[RIGHT_WHEEL]);
-    loop_mtx.unlock();
-
-    for(int i=0 ; i<NUM_OF_WHEELS ; i++)
-    {
-        prev_cmd[i] = cmd[i];
-    }
-
-    last_encoder_timestamp = (uint64_t)encoder->timestamp;
-}
 
 void command_callback(void) {
     int temp_left_setpoint = motor_control_command_rx->left;
@@ -164,12 +100,6 @@ int main(int argc, char* argv[]) {
         new CPJL("localhost", 14000),
         "motor_control_data",
         command_callback
-    );
-
-    encoder = new Encoder(
-        new CPJL("localhost", 14000),
-        "encoder_data",
-        encoder_callback
     );
 
     drive_train = new DriveTrain(argv[1]);

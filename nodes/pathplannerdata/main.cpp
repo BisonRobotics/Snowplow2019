@@ -14,6 +14,8 @@
 #include <unistd.h>
 
 #define ENCODER_TICKS_PER_ROTATION      (2048.0)
+#define DEADZONE                        (1)
+#define WHEEL_CIRCUMFERENCE             (1.39) // meters
 #define WHEEL_CIRCUMFERENCE             (1.39) // meters
 #define AUTO_TASK_DELAY                 (1000 * 1000) // us
 #define MAX_ROTATION_SPEED              (30.0) // RPM
@@ -21,6 +23,20 @@
 #define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
 #define TRAVEL_SLOWDOWN_DISTANCE        (1.0)  // meters
 #define abs(x) ((x < 0) ? -x : x)
+
+
+enum wheels_e
+{
+    LEFT_WHEEL = 0,
+    RIGHT_WHEEL,
+    NUM_OF_WHEELS
+};
+
+enum state_e
+{
+    TELEOP,
+    AUTO
+};
 
 
 using namespace std;
@@ -32,6 +48,9 @@ PathVector* AutoVector = NULL;
 PathVector* pathStatus = NULL;
 Encoder* encoder = NULL;
 
+uint64_t last_timestamp = -1;
+float left_setpoint = 0, right_setpoint = 0;
+float distanceTraveled_meters = 0;
 float current_x_acc = 0;
 float current_y_acc = 0;
 float current_x_vel = 0;
@@ -45,7 +64,16 @@ float distanceTraveled_y_meters = 0;
 float requested_distance_traveled = 0;
 float encoder_distance = 0;
 
-mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx;
+enum state_e CurrentState;
+mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx, setpoint_mutex;
+
+
+uint64_t get_us_timestamp(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return 1000000 * tv.tv_sec + tv.tv_usec;
+}
 
 int clamp(int value, const int min, const int max) {
     int returnVal = value;
@@ -56,11 +84,11 @@ int clamp(int value, const int min, const int max) {
     return returnVal;
 }
 
-uint64_t get_us_timestamp(void)
+double encoderDataToRPM(double encoderTicks, double timeDelta)
 {
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return 1000000 * tv.tv_sec + tv.tv_usec;
+    double rotations = encoderTicks / ENCODER_TICKS_PER_ROTATION; // number of rotations since last poll
+    double rpm = rotations / timeDelta;
+    return rpm;
 }
 
 void xbox_callback(void)
@@ -71,8 +99,8 @@ void xbox_callback(void)
     int right_motor
         = xbox_data_rx->y_joystick_right;
 
-    left_motor = (int)mapFloat(left_motor, -32768, 32767, -50, 50);
-    right_motor = (int)mapFloat(right_motor, -32768, 32767, -50, 50);
+    left_motor = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
+    right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
 
     if(xbox_data_rx->button_b)
     {
@@ -80,6 +108,7 @@ void xbox_callback(void)
         {
             motor_control_command->left = 0;
             motor_control_command->right = 0;
+            motor_control_command->timestamp = get_us_timestamp();
             motor_control_command->putMessage();
         }
         exit(EXIT_SUCCESS);
@@ -88,6 +117,7 @@ void xbox_callback(void)
     //package xbox data into motor controller command
     motor_control_command->left = left_motor;
     motor_control_command->right = right_motor;
+    motor_control_command->timestamp = get_us_timestamp();
     motor_control_command->putMessage();
 
     //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
@@ -121,10 +151,78 @@ void encoder_callback(void){
     double rotations = encoder->left / ENCODER_TICKS_PER_ROTATION;
     rotations += encoder->right / ENCODER_TICKS_PER_ROTATION;
     rotations /=2; // get the average rotations of the encoders
-
+    distanceTraveled_meters = rotations * WHEEL_CIRCUMFERENCE;
+    
     encoder_data_mtx.lock();
     encoder_distance += rotations * WHEEL_CIRCUMFERENCE;
     encoder_data_mtx.unlock();
+
+    // Speed control, only done durring auto
+    if(CurrentState != TELEOP)
+    {
+        static uint64_t last_encoder_timestamp;
+        double dt = encoder->timestamp - last_encoder_timestamp;
+
+        dt /= (60.0 * 1000000.0); // microseconds / minute
+
+        double wheel_rpm[NUM_OF_WHEELS];
+        double setpoint[NUM_OF_WHEELS];
+        static double prev_cmd[NUM_OF_WHEELS];
+        double cmd[NUM_OF_WHEELS];
+
+
+        // Get wheel RPM
+        wheel_rpm[LEFT_WHEEL]  = encoderDataToRPM(encoder->left, dt);
+        wheel_rpm[RIGHT_WHEEL] = encoderDataToRPM(encoder->right, dt);
+
+        // Make local copy of setpoints
+        setpoint_mutex.lock();
+        setpoint[LEFT_WHEEL] = left_setpoint;
+        setpoint[RIGHT_WHEEL] = right_setpoint;
+        setpoint_mutex.unlock();
+
+
+        for(int i=0; i<NUM_OF_WHEELS; i++)
+        {
+            if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
+            {
+                if(wheel_rpm[i] < setpoint[i])
+                {
+                    double error = setpoint[i] - wheel_rpm[i];
+                    cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
+                }
+                else
+                {
+                    double error = wheel_rpm[i] - setpoint[i];
+                    cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
+                }
+            }
+            else
+            {
+                cmd[i] = 0;
+            }
+            cmd[i] = clamp(cmd[i], -1000, 1000);
+        }
+
+    #ifndef NDEBUG
+        cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
+        cout << "Setpoint: L " << setpoint[LEFT_WHEEL] << ", R " << setpoint[RIGHT_WHEEL] << endl;
+        cout << "Output:   L " << cmd[LEFT_WHEEL] << ", R " << cmd[RIGHT_WHEEL] << endl << endl;
+    #endif //NDEBUG
+
+        motor_control_command->left = cmd[LEFT_WHEEL];
+        motor_control_command->right = cmd[RIGHT_WHEEL];
+        motor_control_command->timestamp = get_us_timestamp();
+        motor_control_command->putMessage();
+
+        for(int i=0 ; i<NUM_OF_WHEELS ; i++)
+        {
+            prev_cmd[i] = cmd[i];
+        }
+
+        last_encoder_timestamp = (uint64_t)encoder->timestamp;
+    }
+
 }
 
 /**
@@ -207,9 +305,10 @@ void auto_task_100ms(void)
     }else{
 
         cout << "left: " << left_wheel_cmd << " right: " << right_wheel_cmd << endl;
-        motor_control_command->left = left_wheel_cmd;
-        motor_control_command->right = right_wheel_cmd;
-        motor_control_command->putMessage();
+        setpoint_mutex.lock();
+        left_setpoint = left_wheel_cmd;
+        left_setpoint = right_wheel_cmd;;
+        setpoint_mutex.unlock(); 
     }
 }
 
@@ -229,6 +328,7 @@ int main(int argc, char* argv[])
     //ignores unwanted data
     if(currentMode == "TELEOP" )
     {
+        CurrentState = TELEOP;
         xbox_data_rx = new XboxData(
                     new CPJL("localhost", 14000),
                     "xbox_data",
@@ -236,6 +336,7 @@ int main(int argc, char* argv[])
 
     }else if (currentMode == "Auto")
     {
+        CurrentState = AUTO;
         AutoVector = new PathVector(
                     new CPJL("localhost", 14000),
                     "path_vector",
@@ -279,7 +380,10 @@ int main(int argc, char* argv[])
             usleep(next_run_time - curTime);
         }
         next_run_time += AUTO_TASK_DELAY;
-        auto_task_100ms();
+        if(CurrentState == AUTO)
+        {
+            auto_task_100ms();
+        }
     }
     return 0;
 }
