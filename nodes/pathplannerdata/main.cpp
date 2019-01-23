@@ -99,8 +99,10 @@ void xbox_callback(void)
     int right_motor
         = xbox_data_rx->y_joystick_right;
 
-    left_motor = (int)mapFloat(left_motor, -32768, 32767, -1000, 1000);
-    right_motor = (int)mapFloat(right_motor, -32768, 32767, -1000, 1000);
+    left_motor = (int)mapFloat(left_motor, -32768, 32767, 450, -450);
+    left_motor = (abs(left_motor) < 50)? 0 : left_motor;
+    right_motor = (int)mapFloat(right_motor, -32768, 32767, 450, -450);
+    right_motor = (abs(right_motor) < 50)? 0 : right_motor;
 
     if(xbox_data_rx->button_b)
     {
