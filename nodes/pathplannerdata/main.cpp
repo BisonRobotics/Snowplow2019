@@ -108,6 +108,7 @@ void xbox_callback(void)
         {
             motor_control_command->left = 0;
             motor_control_command->right = 0;
+            motor_control_command->timestamp = get_us_timestamp();
             motor_control_command->putMessage();
         }
         exit(EXIT_SUCCESS);
@@ -116,6 +117,7 @@ void xbox_callback(void)
     //package xbox data into motor controller command
     motor_control_command->left = left_motor;
     motor_control_command->right = right_motor;
+    motor_control_command->timestamp = get_us_timestamp();
     motor_control_command->putMessage();
 
     //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
@@ -210,6 +212,7 @@ void encoder_callback(void){
 
         motor_control_command->left = cmd[LEFT_WHEEL];
         motor_control_command->right = cmd[RIGHT_WHEEL];
+        motor_control_command->timestamp = get_us_timestamp();
         motor_control_command->putMessage();
 
         for(int i=0 ; i<NUM_OF_WHEELS ; i++)
