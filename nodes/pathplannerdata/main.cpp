@@ -113,7 +113,7 @@ void xbox_callback(void)
     int right_motor
         = xbox_data_rx->y_joystick_right;
 
-    left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED50);
+    left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
     left_motor = (abs(left_motor) < 50)? 0 : left_motor;
     right_motor = (int)mapFloat(right_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
     right_motor = (abs(right_motor) < 50)? 0 : right_motor;
