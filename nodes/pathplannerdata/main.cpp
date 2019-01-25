@@ -227,18 +227,18 @@ void encoder_callback(void){
             }
 
             if(cmd[RIGHT_WHEEL] > 1000)
-            {  
+            {
                 cmd[RIGHT_WHEEL] = 1000;
                 error_integral[RIGHT_WHEEL] = (1000 - (setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
             }
 
             if(cmd[RIGHT_WHEEL] < -1000)
-            {  
+            {
                 cmd[RIGHT_WHEEL] = -1000;
                 error_integral[RIGHT_WHEEL] = (-1000 -(setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
             }
 
-               
+
         #else//No PID
             for(int i=0; i<NUM_OF_WHEELS; i++)
             {
