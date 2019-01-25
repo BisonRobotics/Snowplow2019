@@ -13,8 +13,6 @@
 
 #define LEFT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_1, true, true)
 #define RIGHT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_2, true, true)
-#define ENCODER_TICKS_PER_ROTATION      (2048.0)
-#define DEADZONE                        (1)
 #define COMMAND_TIMEOUT_US              (500000)
 
 #include <misc.h>
@@ -51,30 +49,24 @@ uint64_t get_us_timestamp(void)
 uint64_t last_command_timestamp = -1;
 bool watchdog_triggered = false;
 
-double left_setpoint = 0.0;  // unit: RPM
-double right_setpoint = 0.0; // ...
-
 const int adjust_amount = 10; // higher value will react faster but may oscillate too much
 
 // loop is cancelled by locking this
-mutex setpoint_mutex;
 mutex loop_mtx;
 
 
 void command_callback(void) {
-    int temp_left_setpoint = motor_control_command_rx->left;
-    int temp_right_setpoint = motor_control_command_rx->right;
+    int temp_left_cmd = motor_control_command_rx->left;
+    int temp_right_cmd = motor_control_command_rx->right;
 
     last_command_timestamp = get_us_timestamp();
 
-    //cout << right_motor << endl;
-
     if(!watchdog_triggered)
     {
-        setpoint_mutex.lock();
-        left_setpoint = (double) temp_left_setpoint;
-        right_setpoint = (double) temp_right_setpoint;
-        setpoint_mutex.unlock();
+        loop_mtx.lock();
+        LEFT_MOTOR_CMD(temp_left_cmd);
+        RIGHT_MOTOR_CMD(temp_right_cmd);
+        loop_mtx.unlock();
     }
 }
 
