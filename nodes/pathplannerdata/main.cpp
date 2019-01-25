@@ -205,14 +205,40 @@ void encoder_callback(void){
             double i[NUM_OF_WHEELS] = {0,0};
             
             //Find error
-            error[LEFT_WHEEL] += setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL];
-            error[RIGHT_WHEEL] += setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL];
+            error_integral[LEFT_WHEEL] += (setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL]) * dt;
+            error_integral[RIGHT_WHEEL] += (setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL]) * dt;
 
             //PID Calculation
-            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error[LEFT_WHEEL] * i[LEFT_WHEEL]);
-            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
+            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error_integral[LEFT_WHEEL] * i[LEFT_WHEEL]);
+            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error_integral[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
 
-        #else
+            //Adjust Output
+            if(cmd[LEFT_WHEEL] > 1000)
+            {
+                 cmd[LEFT_WHEEL] = 1000;
+                 error_integral[LEFT_WHEEL] = (1000 - (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL])) / i[LEFT_WHEEL];
+            }
+
+             if(cmd[LEFT_WHEEL] < -1000)
+            {
+                 cmd[LEFT_WHEEL] = -1000;
+                 error_integral[LEFT_WHEEL] = (-1000 - (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL])) / i[LEFT_WHEEL];
+            }
+
+            if(cmd[RIGHT_WHEEL] > 1000)
+            {  
+                cmd[RIGHT_WHEEL] = 1000;
+                error_integral[RIGHT_WHEEL] = (1000 - (setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
+            }
+
+            if(cmd[RIGHT_WHEEL] < -1000)
+            {  
+                cmd[RIGHT_WHEEL] = -1000;
+                error_integral[RIGHT_WHEEL] = (-1000 -(setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
+            }
+
+               
+        #else//No PID
             for(int i=0; i<NUM_OF_WHEELS; i++)
             {
                 if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
@@ -234,7 +260,7 @@ void encoder_callback(void){
                 }
                 cmd[i] = clamp(cmd[i], -1000, 1000);
             }
-        #endif
+        #endif //PID
 
     #ifndef NDEBUG
         cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
