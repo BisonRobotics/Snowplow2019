@@ -22,7 +22,7 @@
 #define MAX_TRAVEL_SPEED                (50.0) // RPM
 #define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
 #define TRAVEL_SLOWDOWN_DISTANCE        (1.0)  // meters
-#define abs(x) ((x < 0) ? -x : x)
+#define abs(x)                          ((x < 0) ? -x : x)
 
 
 enum wheels_e
@@ -67,6 +67,19 @@ float encoder_distance = 0;
 enum state_e CurrentState;
 mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx, setpoint_mutex;
 
+float rotation_crossing(float angle)
+{
+    float returnVal = angle;
+    if(angle < (-180.0))
+    {
+        returnVal += 360;
+    }
+    else if(angle > 180.0)
+    {
+        returnVal -= 360;
+    }
+    return returnVal;
+}
 
 uint64_t get_us_timestamp(void)
 {
@@ -273,7 +286,7 @@ void auto_task_100ms(void)
     (void)local_current_y_vel;
     (void)local_current_z_vel;
 
-    float rotation_command = local_requested_z_orient - (local_current_z_orient - last_z_orient);
+    float rotation_command = rotation_crossing(local_requested_z_orient - rotation_crossing(local_current_z_orient - last_z_orient));
 
     // Rotation calulations
     float rotation_wheel_command = clamp((rotation_command / ROTATION_SLOWDOWN_ANGLE) * MAX_ROTATION_SPEED, -MAX_ROTATION_SPEED, MAX_ROTATION_SPEED);

@@ -14,6 +14,7 @@
 #define LEFT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_1, true, true)
 #define RIGHT_MOTOR_CMD(amt) drive_train->wheelVelocity(-amt, RoboteqChannel_2, true, true)
 #define COMMAND_TIMEOUT_US              (500000)
+#define MAX_MOTOR_COMMAND               (1000)
 
 #include <misc.h>
 #include <unistd.h>
@@ -57,8 +58,8 @@ mutex loop_mtx;
 
 
 void command_callback(void) {
-    int temp_left_cmd = motor_control_command_rx->left;
-    int temp_right_cmd = motor_control_command_rx->right;
+    int temp_left_cmd = clamp(motor_control_command_rx->left, -MAX_MOTOR_COMMAND, MAX_MOTOR_COMMAND);
+    int temp_right_cmd = clamp(motor_control_command_rx->right, -MAX_MOTOR_COMMAND, MAX_MOTOR_COMMAND);
 
     last_command_timestamp = get_us_timestamp();
 
