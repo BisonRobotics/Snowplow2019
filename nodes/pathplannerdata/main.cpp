@@ -22,7 +22,7 @@
 #define MAX_TRAVEL_SPEED                (50.0) // RPM
 #define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
 #define TRAVEL_SLOWDOWN_DISTANCE        (1.0)  // meters
-#define abs(x) ((x < 0) ? -x : x)
+#define abs(x)                          ((x < 0) ? -x : x)
 
 
 enum wheels_e
@@ -67,6 +67,19 @@ float encoder_distance = 0;
 enum state_e CurrentState;
 mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx, setpoint_mutex;
 
+float rotation_crossing(float angle)
+{
+    float returnVal = angle;
+    if(angle < (-180.0))
+    {
+        returnVal += 360;
+    }
+    else if(angle > 180.0)
+    {
+        returnVal -= 360;
+    }
+    return returnVal;
+}
 
 uint64_t get_us_timestamp(void)
 {
@@ -172,7 +185,6 @@ void encoder_callback(void){
         static double prev_cmd[NUM_OF_WHEELS];
         double cmd[NUM_OF_WHEELS];
 
-
         // Get wheel RPM
         wheel_rpm[LEFT_WHEEL]  = encoderDataToRPM(encoder->left, dt);
         wheel_rpm[RIGHT_WHEEL] = encoderDataToRPM(encoder->right, dt);
@@ -183,28 +195,42 @@ void encoder_callback(void){
         setpoint[RIGHT_WHEEL] = right_setpoint;
         setpoint_mutex.unlock();
 
+        #ifdef PID
+            double static error_integral[NUM_OF_WHEELS] = {0,0};
+            double p[NUM_OF_WHEELS] = {0,0};
+            double i[NUM_OF_WHEELS] = {0,0};
+            
+            //Find error
+            error[LEFT_WHEEL] += setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL];
+            error[RIGHT_WHEEL] += setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL];
 
-        for(int i=0; i<NUM_OF_WHEELS; i++)
-        {
-            if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
+            //PID Calculation
+            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error[LEFT_WHEEL] * i[LEFT_WHEEL]);
+            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
+
+        #else
+            for(int i=0; i<NUM_OF_WHEELS; i++)
             {
-                if(wheel_rpm[i] < setpoint[i])
+                if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
                 {
-                    double error = setpoint[i] - wheel_rpm[i];
-                    cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
+                    if(wheel_rpm[i] < setpoint[i])
+                    {
+                        double error = setpoint[i] - wheel_rpm[i];
+                        cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
+                    }
+                    else
+                    {
+                        double error = wheel_rpm[i] - setpoint[i];
+                        cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
+                    }
                 }
                 else
                 {
-                    double error = wheel_rpm[i] - setpoint[i];
-                    cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
+                    cmd[i] = 0;
                 }
+                cmd[i] = clamp(cmd[i], -1000, 1000);
             }
-            else
-            {
-                cmd[i] = 0;
-            }
-            cmd[i] = clamp(cmd[i], -1000, 1000);
-        }
+        #endif
 
     #ifndef NDEBUG
         cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
@@ -273,7 +299,7 @@ void auto_task_100ms(void)
     (void)local_current_y_vel;
     (void)local_current_z_vel;
 
-    float rotation_command = local_requested_z_orient - (local_current_z_orient - last_z_orient);
+    float rotation_command = rotation_crossing(local_requested_z_orient - rotation_crossing(local_current_z_orient - last_z_orient));
 
     // Rotation calulations
     float rotation_wheel_command = clamp((rotation_command / ROTATION_SLOWDOWN_ANGLE) * MAX_ROTATION_SPEED, -MAX_ROTATION_SPEED, MAX_ROTATION_SPEED);

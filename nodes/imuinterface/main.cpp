@@ -70,10 +70,10 @@ int main(int argc, char* argv[]) {
         float tempx, tempy, tempz;
         if(cd.hasYawPitchRoll()) {
             auto ypr = cd.yawPitchRoll();
-            tempx = ypr.x;
+            tempx = ypr.z;
             tempy = ypr.y;
-            tempz = ypr.z;
-            imu_vector_to_robo_vector(tempx,tempy,tempz);
+            tempz = ypr.x;
+
             imu->z_orient = tempz;
         }
         if(cd.hasAcceleration()) {
@@ -94,6 +94,7 @@ int main(int argc, char* argv[]) {
             imu->x_vel = tempx;
             imu->y_vel = tempy;
         }
+        printf("Z orient: %2.2f    x vel: %2.2f    x accel: %2.2f    y vel: %2.2f    y accel: %2.2f", imu->z_orient, imu->x_vel, imu->x_acc, imu->y_vel, imu->y_acc);
 
         // send data
         imu->putMessage();
