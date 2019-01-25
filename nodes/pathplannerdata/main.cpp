@@ -23,6 +23,7 @@
 #define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
 #define TRAVEL_SLOWDOWN_DISTANCE        (1.0)  // meters
 #define abs(x)                          ((x < 0) ? -x : x)
+#define MAX_TELEOP_SPEED                (400) // raw motor power
 
 
 enum wheels_e
@@ -112,9 +113,9 @@ void xbox_callback(void)
     int right_motor
         = xbox_data_rx->y_joystick_right;
 
-    left_motor = (int)mapFloat(left_motor, -32768, 32767, 450, -450);
+    left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED50);
     left_motor = (abs(left_motor) < 50)? 0 : left_motor;
-    right_motor = (int)mapFloat(right_motor, -32768, 32767, 450, -450);
+    right_motor = (int)mapFloat(right_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
     right_motor = (abs(right_motor) < 50)? 0 : right_motor;
 
     if(xbox_data_rx->button_b)
@@ -167,7 +168,7 @@ void encoder_callback(void){
     rotations += encoder->right / ENCODER_TICKS_PER_ROTATION;
     rotations /=2; // get the average rotations of the encoders
     distanceTraveled_meters = rotations * WHEEL_CIRCUMFERENCE;
-    
+
     encoder_data_mtx.lock();
     encoder_distance += rotations * WHEEL_CIRCUMFERENCE;
     encoder_data_mtx.unlock();
@@ -199,7 +200,7 @@ void encoder_callback(void){
             double static error_integral[NUM_OF_WHEELS] = {0,0};
             double p[NUM_OF_WHEELS] = {0,0};
             double i[NUM_OF_WHEELS] = {0,0};
-            
+
             //Find error
             error[LEFT_WHEEL] += setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL];
             error[RIGHT_WHEEL] += setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL];
@@ -336,7 +337,7 @@ void auto_task_100ms(void)
         setpoint_mutex.lock();
         left_setpoint = left_wheel_cmd;
         left_setpoint = right_wheel_cmd;;
-        setpoint_mutex.unlock(); 
+        setpoint_mutex.unlock();
     }
 }
 
