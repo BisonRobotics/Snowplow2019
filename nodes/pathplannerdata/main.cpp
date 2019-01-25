@@ -36,7 +36,8 @@ enum wheels_e
 enum state_e
 {
     TELEOP,
-    AUTO
+    AUTO,
+    TEST
 };
 
 
@@ -107,36 +108,39 @@ double encoderDataToRPM(double encoderTicks, double timeDelta)
 
 void xbox_callback(void)
 {
-    //receive data in xbox
-    int left_motor
-        = xbox_data_rx->y_joystick_left;
-    int right_motor
-        = xbox_data_rx->y_joystick_right;
-
-    left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
-    left_motor = (abs(left_motor) < 50)? 0 : left_motor;
-    right_motor = (int)mapFloat(right_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
-    right_motor = (abs(right_motor) < 50)? 0 : right_motor;
-
-    if(xbox_data_rx->button_b)
+    if(CurrentState == TEST || CurrentState == TELEOP)
     {
-        for(int i : {0, 1, 2})
+        //receive data in xbox
+        int left_motor
+            = xbox_data_rx->y_joystick_left;
+        int right_motor
+            = xbox_data_rx->y_joystick_right;
+
+        left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED , -MAX_TELEOP_SPEED);
+        left_motor = (abs(left_motor) < 50)? 0 : left_motor;
+        right_motor = (int)mapFloat(right_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
+        right_motor = (abs(right_motor) < 50)? 0 : right_motor;
+
+        if(xbox_data_rx->button_b)
         {
-            motor_control_command->left = 0;
-            motor_control_command->right = 0;
-            motor_control_command->timestamp = get_us_timestamp();
-            motor_control_command->putMessage();
+            for(int i : {0, 1, 2})
+            {
+                motor_control_command->left = 0;
+                motor_control_command->right = 0;
+                motor_control_command->timestamp = get_us_timestamp();
+                motor_control_command->putMessage();
+            }
+            exit(EXIT_SUCCESS);
         }
-        exit(EXIT_SUCCESS);
+
+        //package xbox data into motor controller command
+        motor_control_command->left = left_motor;
+        motor_control_command->right = right_motor;
+        motor_control_command->timestamp = get_us_timestamp();
+        motor_control_command->putMessage();
+
+        //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
     }
-
-    //package xbox data into motor controller command
-    motor_control_command->left = left_motor;
-    motor_control_command->right = right_motor;
-    motor_control_command->timestamp = get_us_timestamp();
-    motor_control_command->putMessage();
-
-    //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
 }
 
 void imu_calback(void)
@@ -174,7 +178,7 @@ void encoder_callback(void){
     encoder_data_mtx.unlock();
 
     // Speed control, only done durring auto
-    if(CurrentState != TELEOP)
+    if(CurrentState == AUTO)
     {
         static uint64_t last_encoder_timestamp;
         double dt = encoder->timestamp - last_encoder_timestamp;
@@ -202,14 +206,40 @@ void encoder_callback(void){
             double i[NUM_OF_WHEELS] = {0,0};
 
             //Find error
-            error[LEFT_WHEEL] += setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL];
-            error[RIGHT_WHEEL] += setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL];
+            error_integral[LEFT_WHEEL] += (setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL]) * dt;
+            error_integral[RIGHT_WHEEL] += (setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL]) * dt;
 
             //PID Calculation
-            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error[LEFT_WHEEL] * i[LEFT_WHEEL]);
-            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
+            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error_integral[LEFT_WHEEL] * i[LEFT_WHEEL]);
+            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error_integral[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
 
-        #else
+            //Adjust Output
+            if(cmd[LEFT_WHEEL] > 1000)
+            {
+                 cmd[LEFT_WHEEL] = 1000;
+                 error_integral[LEFT_WHEEL] = (1000 - (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL])) / i[LEFT_WHEEL];
+            }
+
+             if(cmd[LEFT_WHEEL] < -1000)
+            {
+                 cmd[LEFT_WHEEL] = -1000;
+                 error_integral[LEFT_WHEEL] = (-1000 - (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL])) / i[LEFT_WHEEL];
+            }
+
+            if(cmd[RIGHT_WHEEL] > 1000)
+            {  
+                cmd[RIGHT_WHEEL] = 1000;
+                error_integral[RIGHT_WHEEL] = (1000 - (setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
+            }
+
+            if(cmd[RIGHT_WHEEL] < -1000)
+            {  
+                cmd[RIGHT_WHEEL] = -1000;
+                error_integral[RIGHT_WHEEL] = (-1000 -(setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
+            }
+
+               
+        #else//No PID
             for(int i=0; i<NUM_OF_WHEELS; i++)
             {
                 if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
@@ -231,7 +261,7 @@ void encoder_callback(void){
                 }
                 cmd[i] = clamp(cmd[i], -1000, 1000);
             }
-        #endif
+        #endif //PID
 
     #ifndef NDEBUG
         cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
@@ -383,7 +413,28 @@ int main(int argc, char* argv[])
         //the Response message node
         pathStatus = new PathVector( new CPJL( "localhost", 14000),
                                     "path_status");
-    }else
+    }else if(currentMode == "TEST")
+    {
+        AutoVector = new PathVector(
+                    new CPJL("localhost", 14000),
+                    "path_vector",
+                    auto_callback);
+
+        imu_data_rx = new ImuData(
+                    new CPJL("localhost", 14000),
+                    "imuData",
+                    imu_calback);
+
+        encoder = new Encoder(
+                    new CPJL("localhost", 14000),
+                    "encoder_data",
+                    encoder_callback);
+        xbox_data_rx = new XboxData(
+                    new CPJL("localhost", 14000),
+                    "xbox_data",
+                    xbox_callback);
+    }
+    else
     {
         cout << "Incorrect argument:\n" << argv[1] << " <'TELEOP', 'Auto'>\n";
         exit(EXIT_FAILURE);
