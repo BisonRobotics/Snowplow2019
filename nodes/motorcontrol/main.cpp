@@ -48,14 +48,6 @@ uint64_t get_us_timestamp(void)
     return 1000000 * tv.tv_sec + tv.tv_usec;
 }
 
-double encoderDataToRPM(double encoderTicks, double timeDelta)
-{
-    double rotations = encoderTicks / ENCODER_TICKS_PER_ROTATION; // number of rotations since last poll
-    double rpm = rotations / timeDelta;
-    return rpm;
-}
-
-uint64_t last_encoder_timestamp = -1;
 uint64_t last_command_timestamp = -1;
 bool watchdog_triggered = false;
 
