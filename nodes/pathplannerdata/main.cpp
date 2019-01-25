@@ -185,7 +185,6 @@ void encoder_callback(void){
         static double prev_cmd[NUM_OF_WHEELS];
         double cmd[NUM_OF_WHEELS];
 
-
         // Get wheel RPM
         wheel_rpm[LEFT_WHEEL]  = encoderDataToRPM(encoder->left, dt);
         wheel_rpm[RIGHT_WHEEL] = encoderDataToRPM(encoder->right, dt);
@@ -196,28 +195,42 @@ void encoder_callback(void){
         setpoint[RIGHT_WHEEL] = right_setpoint;
         setpoint_mutex.unlock();
 
+        #ifdef PID
+            double static error_integral[NUM_OF_WHEELS] = {0,0};
+            double p[NUM_OF_WHEELS] = {0,0};
+            double i[NUM_OF_WHEELS] = {0,0};
+            
+            //Find error
+            error[LEFT_WHEEL] += setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL];
+            error[RIGHT_WHEEL] += setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL];
 
-        for(int i=0; i<NUM_OF_WHEELS; i++)
-        {
-            if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
+            //PID Calculation
+            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error[LEFT_WHEEL] * i[LEFT_WHEEL]);
+            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
+
+        #else
+            for(int i=0; i<NUM_OF_WHEELS; i++)
             {
-                if(wheel_rpm[i] < setpoint[i])
+                if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
                 {
-                    double error = setpoint[i] - wheel_rpm[i];
-                    cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
+                    if(wheel_rpm[i] < setpoint[i])
+                    {
+                        double error = setpoint[i] - wheel_rpm[i];
+                        cmd[i] = prev_cmd[i] + clamp(((error * error /10) + 1), 0, 50);
+                    }
+                    else
+                    {
+                        double error = wheel_rpm[i] - setpoint[i];
+                        cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
+                    }
                 }
                 else
                 {
-                    double error = wheel_rpm[i] - setpoint[i];
-                    cmd[i] = prev_cmd[i] - clamp(((error * error /10) + 1), 0, 50);
+                    cmd[i] = 0;
                 }
+                cmd[i] = clamp(cmd[i], -1000, 1000);
             }
-            else
-            {
-                cmd[i] = 0;
-            }
-            cmd[i] = clamp(cmd[i], -1000, 1000);
-        }
+        #endif
 
     #ifndef NDEBUG
         cout << "Measured: L " << wheel_rpm[LEFT_WHEEL] << ", R " << wheel_rpm[RIGHT_WHEEL] << endl;
