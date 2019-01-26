@@ -17,7 +17,7 @@
 #define DEADZONE                        (1)
 #define WHEEL_CIRCUMFERENCE             (1.39) // meters
 #define WHEEL_CIRCUMFERENCE             (1.39) // meters
-#define AUTO_TASK_DELAY                 (1000 * 1000) // us
+#define AUTO_TASK_DELAY                 (100 * 1000) // us
 #define MAX_ROTATION_SPEED              (30.0) // RPM
 #define MAX_TRAVEL_SPEED                (50.0) // RPM
 #define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
@@ -58,7 +58,7 @@ float current_x_vel = 0;
 float current_y_vel = 0;
 float current_z_vel = 0;
 float current_z_orient = 0;
-float last_z_orient = 0;
+float reference_z_orient = 0;
 float requested_z_orient = 0;
 float distanceTraveled_x_meters = 0;
 float distanceTraveled_y_meters = 0;
@@ -66,37 +66,7 @@ float requested_distance_traveled = 0;
 float encoder_distance = 0;
 
 enum state_e CurrentState;
-mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx, setpoint_mutex;
-
-float rotation_crossing(float angle)
-{
-    float returnVal = angle;
-    if(angle < (-180.0))
-    {
-        returnVal += 360;
-    }
-    else if(angle > 180.0)
-    {
-        returnVal -= 360;
-    }
-    return returnVal;
-}
-
-uint64_t get_us_timestamp(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return 1000000 * tv.tv_sec + tv.tv_usec;
-}
-
-int clamp(int value, const int min, const int max) {
-    int returnVal = value;
-    if(value > max)
-        returnVal = max;
-    else if(value < min)
-        returnVal = min;
-    return returnVal;
-}
+mutex requested_data_mtx, encoder_data_mtx, imu_data_mtx, setpoint_mutex, motor_cmd_mutex;
 
 double encoderDataToRPM(double encoderTicks, double timeDelta)
 {
@@ -124,19 +94,22 @@ void xbox_callback(void)
         {
             for(int i : {0, 1, 2})
             {
+                (void)i;
                 motor_control_command->left = 0;
                 motor_control_command->right = 0;
-                motor_control_command->timestamp = get_us_timestamp();
+                motor_control_command->timestamp = UsecTimestamp();
                 motor_control_command->putMessage();
             }
             exit(EXIT_SUCCESS);
         }
 
         //package xbox data into motor controller command
+        motor_cmd_mutex.lock();
         motor_control_command->left = left_motor;
         motor_control_command->right = right_motor;
-        motor_control_command->timestamp = get_us_timestamp();
+        motor_control_command->timestamp = UsecTimestamp();
         motor_control_command->putMessage();
+        motor_cmd_mutex.unlock();
 
         //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
     }
@@ -144,7 +117,7 @@ void xbox_callback(void)
 
 void imu_calback(void)
 {
-    static uint64_t last_timestamp = get_us_timestamp();
+    static uint64_t last_timestamp = UsecTimestamp();
     static float last_z_orient = current_z_orient;
     uint64_t current_time = imu_data_rx->timestamp;
 
@@ -204,39 +177,26 @@ void encoder_callback(void){
             double p[NUM_OF_WHEELS] = {0,0};
             double i[NUM_OF_WHEELS] = {0,0};
             
+            for(int wheel_index=0; wheel_index<NUM_OF_WHEELS; wheel_index++)
+            {
             //Find error
-            error_integral[LEFT_WHEEL] += (setpoint[LEFT_WHEEL] - wheel_rpm[LEFT_WHEEL]) * dt;
-            error_integral[RIGHT_WHEEL] += (setpoint[RIGHT_WHEEL] - wheel_rpm[RIGHT_WHEEL]) * dt;
+            error_integral[wheel_index] += (setpoint[wheel_index] - wheel_rpm[wheel_index]) * dt;
 
             //PID Calculation
-            cmd[LEFT_WHEEL] = (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL]) + (error_integral[LEFT_WHEEL] * i[LEFT_WHEEL]);
-            cmd[RIGHT_WHEEL] = (setpoint[RIGHT_WHEEL]* p[RIGHT_WHEEL] + (error_integral[RIGHT_WHEEL] * i[RIGHT_WHEEL]));
+            cmd[wheel_index] = (setpoint[wheel_index] * p[wheel_index]) + (error_integral[wheel_index] * i[wheel_index]);
 
             //Adjust Output
-            if(cmd[LEFT_WHEEL] > 1000)
+            if(cmd[wheel_index] > 1000)
             {
-                 cmd[LEFT_WHEEL] = 1000;
-                 error_integral[LEFT_WHEEL] = (1000 - (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL])) / i[LEFT_WHEEL];
+                 cmd[wheel_index] = 1000;
+                 error_integral[wheel_index] = (1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
             }
 
-             if(cmd[LEFT_WHEEL] < -1000)
+             if(cmd[wheel_index] < -1000)
             {
-                 cmd[LEFT_WHEEL] = -1000;
-                 error_integral[LEFT_WHEEL] = (-1000 - (setpoint[LEFT_WHEEL] * p[LEFT_WHEEL])) / i[LEFT_WHEEL];
+                 cmd[wheel_index] = -1000;
+                 error_integral[wheel_index] = (-1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
             }
-
-            if(cmd[RIGHT_WHEEL] > 1000)
-            {  
-                cmd[RIGHT_WHEEL] = 1000;
-                error_integral[RIGHT_WHEEL] = (1000 - (setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
-            }
-
-            if(cmd[RIGHT_WHEEL] < -1000)
-            {  
-                cmd[RIGHT_WHEEL] = -1000;
-                error_integral[RIGHT_WHEEL] = (-1000 -(setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL])) / i[RIGHT_WHEEL];
-            }
-
                
         #else//No PID
             for(int i=0; i<NUM_OF_WHEELS; i++)
@@ -268,10 +228,12 @@ void encoder_callback(void){
         cout << "Output:   L " << cmd[LEFT_WHEEL] << ", R " << cmd[RIGHT_WHEEL] << endl << endl;
     #endif //NDEBUG
 
+        motor_cmd_mutex.lock();
         motor_control_command->left = cmd[LEFT_WHEEL];
         motor_control_command->right = cmd[RIGHT_WHEEL];
-        motor_control_command->timestamp = get_us_timestamp();
+        motor_control_command->timestamp = UsecTimestamp();
         motor_control_command->putMessage();
+        motor_cmd_mutex.unlock();
 
         for(int i=0 ; i<NUM_OF_WHEELS ; i++)
         {
@@ -287,17 +249,36 @@ void encoder_callback(void){
  * The Auto Callback converts current location and pathvector to motorspeeds
  */
 void auto_callback(void){
+    
 
-    //get target info
-    requested_data_mtx.lock();
-    requested_distance_traveled = AutoVector->mag;
-    requested_z_orient = AutoVector->dir;
-    requested_data_mtx.unlock();
+    if(std::string("SendingNextTansition").compare(AutoVector->status) == 0)
+    {
+        //get target info
+        requested_data_mtx.lock();
+        requested_distance_traveled = AutoVector->mag;
+        requested_z_orient = AutoVector->dir;
+        requested_data_mtx.unlock();
 
-    cout<< "new vector recieved: m:" << AutoVector->mag << " d: " << AutoVector->dir << endl;
-    imu_data_mtx.lock();
-    last_z_orient = current_z_orient;
-    imu_data_mtx.unlock();
+        cout<< "new vector recieved: m:" << AutoVector->mag << " d: " << AutoVector->dir << endl;
+        imu_data_mtx.lock();
+        reference_z_orient = current_z_orient;
+        imu_data_mtx.unlock();
+
+        encoder_data_mtx.lock();
+        encoder_distance = 0;
+        encoder_data_mtx.unlock();
+    }
+    else if(std::string("out of vectors").compare(AutoVector->status) == 0)
+    {
+        motor_cmd_mutex.lock();
+        printf("Completed all vectors!\nExiting...\n");
+        exit(0);
+        motor_cmd_mutex.unlock();
+    }
+    else
+    {
+        cout << "Got a auto message but it was not a vector!" << endl;
+    }
 }
 
 void auto_task_100ms(void)
@@ -329,7 +310,7 @@ void auto_task_100ms(void)
     (void)local_current_y_vel;
     (void)local_current_z_vel;
 
-    float rotation_command = rotation_crossing(local_requested_z_orient - rotation_crossing(local_current_z_orient - last_z_orient));
+    float rotation_command = rotation_crossing(local_requested_z_orient - rotation_crossing(local_current_z_orient - reference_z_orient));
 
     // Rotation calulations
     float rotation_wheel_command = clamp((rotation_command / ROTATION_SLOWDOWN_ANGLE) * MAX_ROTATION_SPEED, -MAX_ROTATION_SPEED, MAX_ROTATION_SPEED);
@@ -339,7 +320,7 @@ void auto_task_100ms(void)
     // Distance calculations
     float travel_command = local_requested_distance_traveled - local_encoder_distance;
     // Can be improved
-    if(abs(rotation_command) < 3.0)
+    if(abs(rotation_command) < 10.0)
     {
         float travel_wheel_command = clamp(
             ((travel_command / (TRAVEL_SLOWDOWN_DISTANCE)) * MAX_TRAVEL_SPEED),
@@ -351,6 +332,8 @@ void auto_task_100ms(void)
         right_wheel_cmd += travel_wheel_command;
     }
 
+    printf("commanded distance: %3.2f     commanded rotation:  %3.2f\n", travel_command, rotation_command);
+
     if((abs(rotation_command) < 3) && (abs(travel_command) < 0.3))
     {
         pathStatus->dir = rotation_command;
@@ -361,11 +344,10 @@ void auto_task_100ms(void)
         cout<< "requesting New Vector" << endl;
 
     }else{
-
         cout << "left: " << left_wheel_cmd << " right: " << right_wheel_cmd << endl;
         setpoint_mutex.lock();
         left_setpoint = left_wheel_cmd;
-        left_setpoint = right_wheel_cmd;;
+        right_setpoint = right_wheel_cmd;;
         setpoint_mutex.unlock(); 
     }
 }
@@ -402,7 +384,7 @@ int main(int argc, char* argv[])
 
         imu_data_rx = new ImuData(
                     new CPJL("localhost", 14000),
-                    "imuData",
+                    "vecnavdata",
                     imu_calback);
 
         encoder = new Encoder(
@@ -414,6 +396,7 @@ int main(int argc, char* argv[])
                                     "path_status");
     }else if(currentMode == "TEST")
     {
+        CurrentState = TEST;
         AutoVector = new PathVector(
                     new CPJL("localhost", 14000),
                     "path_vector",
@@ -421,13 +404,16 @@ int main(int argc, char* argv[])
 
         imu_data_rx = new ImuData(
                     new CPJL("localhost", 14000),
-                    "imuData",
+                    "vecnavdata",
                     imu_calback);
 
         encoder = new Encoder(
                     new CPJL("localhost", 14000),
                     "encoder_data",
                     encoder_callback);
+        pathStatus = new PathVector(
+                    new CPJL( "localhost", 14000),
+                    "path_status");
         xbox_data_rx = new XboxData(
                     new CPJL("localhost", 14000),
                     "xbox_data",
@@ -449,17 +435,17 @@ int main(int argc, char* argv[])
     (void)loop;
 
     // Run 1ms task every 1ms
-    next_run_time = get_us_timestamp();
+    next_run_time = UsecTimestamp();
     while(true)
     {
-        uint64_t curTime = get_us_timestamp();
+        uint64_t curTime = UsecTimestamp();
         if(curTime < next_run_time)
         {
             // Sleep until next run time
             usleep(next_run_time - curTime);
         }
         next_run_time += AUTO_TASK_DELAY;
-        if(CurrentState == AUTO)
+        if(CurrentState == AUTO || CurrentState == TEST)
         {
             auto_task_100ms();
         }
