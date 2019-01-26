@@ -5,16 +5,22 @@
 #include <string>
 #include <fstream>
 
+using namespace std;
+
 // compiler takes care of showing us where these are
 PathVector* nextPathVector_tx = NULL;
 PathVector* path_Response_rx = NULL;
 bool sendNewVector = false;
 bool sendAvoidanceVector =false;
-std::string reachTarget = "ReachedTarget";
-std::string obsticalString = "AHHH_Theres_an_obsitacal";
+string reachTarget = "ReachedTarget";
+string obsticalString = "AHHH_Theres_an_obsitacal";
 
-std::vector<float> mag_vect;
-std::vector<float> dir_vect;
+float[] ob_avoid_mag = {0.75, 1.5 , 0.75};
+float[] ob_avoid_right_dir = { 90, -90, -90}
+float[] ob_avoid_left_dir =  {-90,  90,  90}
+
+vector<float> mag_vect;
+vector<float> dir_vect;
 
 uint32_t vectIndex = 0;
 
@@ -37,6 +43,24 @@ void response_callback(void){
             nextPathVector_tx->putMessage();
             std::cout << "sending new vector" << std::endl;
             vectIndex ++;
+        } else if (obsticalString.compare(path_Response_rx->status) == 0 ){
+            cout << path_Response_rx->staus << endl;
+
+            nextPathVector_tx->mag = ob_avoid_mag[0];
+            nextPathVector_tx->dir = ob_avoid_right_dir[0];
+            nextPathVector_tx->status = "SendingNextTansition";
+            nextPathVector_tx->putMessage();
+            cout << "sending avoid vector"<< endl;
+
+            mag_vect.insert(vectIndex, ob_avoid_mag[1]);
+            mag_vect.insert(vectIndex+1, ob_avoid_mag[2]);
+            dir_vect.insert(vectIndex, ob_avoid_right_dir[1]) ;
+            dir_vect.insert(vectIndex+1, ob_avoid_right_dir[2]);
+
+            mag_vect.insert(vectIndex+2, nextPathVector_rx->mag ) ;
+            dir_vect.insert(vectIndex+2, nextPathVector_rx->dir);
+
+            vectIndex++;
         } else
         {
             nextPathVector_tx->mag = mag_vect[vectIndex];
