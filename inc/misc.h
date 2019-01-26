@@ -24,6 +24,8 @@ float mapFloat(
         float input_start,  float input_end, 
         float output_start, float output_end);
 
+#define map_float mapFloat
+
 double mapDouble(
         double input,
         double input_start,  double input_end,
