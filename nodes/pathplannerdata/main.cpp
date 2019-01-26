@@ -106,10 +106,10 @@ void xbox_callback(void)
 
         //package xbox data into motor controller command
         motor_cmd_mutex.lock();
-        motor_control_command->left = left_motor;
-        motor_control_command->right = right_motor;
-        motor_control_command->timestamp = UsecTimestamp();
-        motor_control_command->putMessage();
+            motor_control_command->left = left_motor;
+            motor_control_command->right = right_motor;
+            motor_control_command->timestamp = UsecTimestamp();
+            motor_control_command->putMessage();
         motor_cmd_mutex.unlock();
 
         //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
@@ -127,12 +127,12 @@ void imu_calback(void)
 
     //receive data from IMU
     imu_data_mtx.lock();
-    current_x_acc = imu_data_rx->x_acc;
-    current_y_acc = imu_data_rx->y_acc;
-    current_x_vel = imu_data_rx->x_vel;
-    current_y_vel = imu_data_rx->y_vel;
-    current_z_orient = imu_data_rx->z_orient;
-    current_z_vel = temp_current_z_vel;
+        current_x_acc = imu_data_rx->x_acc;
+        current_y_acc = imu_data_rx->y_acc;
+        current_x_vel = imu_data_rx->x_vel;
+        current_y_vel = imu_data_rx->y_vel;
+        current_z_orient = imu_data_rx->z_orient;
+        current_z_vel = temp_current_z_vel;
     imu_data_mtx.unlock();
 
     last_timestamp = current_time;
@@ -243,7 +243,6 @@ void encoder_callback(void){
 
         last_encoder_timestamp = (uint64_t)encoder->timestamp;
     }
-
 }
 
 /**
@@ -256,24 +255,28 @@ void auto_callback(void){
     {
         //get target info
         requested_data_mtx.lock();
-        requested_distance_traveled = AutoVector->mag;
-        requested_z_orient = AutoVector->dir;
+            requested_distance_traveled = AutoVector->mag;
+            requested_z_orient = AutoVector->dir;
         requested_data_mtx.unlock();
 
         cout<< "new vector recieved: m:" << AutoVector->mag << " d: " << AutoVector->dir << endl;
         imu_data_mtx.lock();
-        reference_z_orient = current_z_orient;
+            reference_z_orient = current_z_orient;
         imu_data_mtx.unlock();
 
         encoder_data_mtx.lock();
-        encoder_distance = 0;
+            encoder_distance = 0;
         encoder_data_mtx.unlock();
     }
     else if(std::string("out of vectors").compare(AutoVector->status) == 0)
     {
         motor_cmd_mutex.lock();
-        printf("Completed all vectors!\nExiting...\n");
-        exit(0);
+            motor_control_command->left = 0;
+            motor_control_command->right = 0;
+            motor_control_command->timestamp = UsecTimestamp();
+            motor_control_command->putMessage();
+            printf("Completed all vectors!\nExiting...\n");
+            exit(0);
         motor_cmd_mutex.unlock();
     }
     else
@@ -287,21 +290,21 @@ void auto_task_100ms(void)
     float left_wheel_cmd = 0, right_wheel_cmd = 0;
 
     imu_data_mtx.lock();
-    float local_current_x_acc = current_x_acc;
-    float local_current_y_acc = current_y_acc;
-    float local_current_x_vel = current_x_vel;
-    float local_current_y_vel = current_y_vel;
-    float local_current_z_vel = current_z_vel;
-    float local_current_z_orient = current_z_orient;
+        float local_current_x_acc = current_x_acc;
+        float local_current_y_acc = current_y_acc;
+        float local_current_x_vel = current_x_vel;
+        float local_current_y_vel = current_y_vel;
+        float local_current_z_vel = current_z_vel;
+        float local_current_z_orient = current_z_orient;
     imu_data_mtx.unlock();
 
     requested_data_mtx.lock();
-    float local_requested_z_orient = requested_z_orient;
-    float local_requested_distance_traveled = requested_distance_traveled;
+        float local_requested_z_orient = requested_z_orient;
+        float local_requested_distance_traveled = requested_distance_traveled;
     requested_data_mtx.unlock();
 
     encoder_data_mtx.lock();
-    float local_encoder_distance = encoder_distance;
+        float local_encoder_distance = encoder_distance;
     encoder_data_mtx.unlock();
 
     // Take care of compiler warnings
@@ -342,13 +345,13 @@ void auto_task_100ms(void)
         pathStatus->status = "ReachedTarget";
         pathStatus->putMessage();
         cout << "completed vector: m: "<< pathStatus->mag << " d: " << pathStatus->dir << " " << pathStatus->status<< endl;
-        cout<< "requesting New Vector" << endl;
+        cout << "requesting New Vector" << endl;
 
     }else{
         cout << "left: " << left_wheel_cmd << " right: " << right_wheel_cmd << endl;
         setpoint_mutex.lock();
-        left_setpoint = left_wheel_cmd;
-        right_setpoint = right_wheel_cmd;
+            left_setpoint = left_wheel_cmd;
+            right_setpoint = right_wheel_cmd;
         setpoint_mutex.unlock();
     }
 }
