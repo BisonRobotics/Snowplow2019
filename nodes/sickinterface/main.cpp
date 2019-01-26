@@ -19,6 +19,28 @@ using namespace std;
 
 SickMeasurement* sick_measure = NULL;
 
+typedef struct
+{
+    float x;
+    float y;
+} point_t;
+
+typedef struct
+{
+    point_t topLeft;
+    point_t bottomRight;
+} rectangle_t;
+
+rectangle_t WarningBoxes[] = {{{-10, 10}, {10, -10}}, {{10, -10}, {-20, 20}}};
+
+bool point_in_box(point_t point, rectangle_t rectangle)
+{
+    return (point.x >= rectangle.topLeft.x &&
+           point.y <= rectangle.topLeft.y &&
+           point.x <= rectangle.bottomRight.x &&
+           point.y >= rectangle.bottomRight.y);
+}
+
 int main(int argc, char* argv[]) {
     // node that transmits SICK data
     sick_measure = new SickMeasurement(new CPJL("localhost", 14000), "sick_data");
@@ -63,6 +85,23 @@ int main(int argc, char* argv[]) {
         sick_measure->putMessage();
 
         usleep(300000);
+    }
+
+    for(int i = 0; i < 541; i++)
+    {
+        // heres that mysterious magic number again...
+        float angle = 0.00872665*float(i) - 0.7853985;
+
+        point_t obsticle = {
+            sick_measure->data[i] * cosf(angle),  // x-coordinate
+            sick_measure->data[i] * sinf(angle)   // y-coordinate
+        }
+
+        for(int i=0; i<(sizeof(WarningBoxes)/sizeof(WarningBoxes[0])); i++)
+        {
+            if()
+        }
+
     }
 
 #endif // TEST_MODE
