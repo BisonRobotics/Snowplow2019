@@ -36,4 +36,9 @@ double mapDouble(
 
 uint64_t UsecTimestamp(void);
 
+float rotation_crossing(float angle);
+
+int clamp(int value, const int min, const int max);
+int clamp(int value, const int max_magnitude);
+
 #endif // __JJC__MISC__H__

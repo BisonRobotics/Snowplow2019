@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
 
     // spend forever waiting
     auto loop = CPJL_Message::loop();
+    (void)loop;
     while(true) sleep(1000000);
 
     return 0;

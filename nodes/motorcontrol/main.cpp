@@ -31,21 +31,6 @@ enum wheels_e
 MotorControlCommand* motor_control_command_rx = NULL;
 DriveTrain* drive_train = NULL;
 
-int clamp(int value, const int min, const int max) {
-    int returnVal = value;
-    if(value > max)
-        returnVal = max;
-    else if(value < min)
-        returnVal = min;
-    return returnVal;
-}
-
-uint64_t get_us_timestamp(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return 1000000 * tv.tv_sec + tv.tv_usec;
-}
 
 uint64_t last_command_timestamp = -1;
 bool watchdog_triggered = false;
@@ -60,7 +45,7 @@ void command_callback(void) {
     int temp_left_cmd = clamp(motor_control_command_rx->left, -MAX_MOTOR_COMMAND, MAX_MOTOR_COMMAND);
     int temp_right_cmd = clamp(motor_control_command_rx->right, -MAX_MOTOR_COMMAND, MAX_MOTOR_COMMAND);
 
-    last_command_timestamp = get_us_timestamp();
+    last_command_timestamp = UsecTimestamp();
 
     if(!watchdog_triggered)
     {
@@ -95,26 +80,7 @@ int main(int argc, char* argv[]) {
     // monitor for broken communication link
     while(true)
     {
-        // uint64_t curTime = get_us_timestamp();
-        // if((curTime - last_command_timestamp) < COMMAND_TIMEOUT_US)
-        // {
-        //     // No watchdog trigger
-        //     watchdog_triggered = false;
-        //     usleep((last_command_timestamp + COMMAND_TIMEOUT_US) - curTime);
-        // }
-        // else
-        // {
-        //     // Watchdog trigger
-        //     watchdog_triggered = true;
-
-        //     loop_mtx.lock();
-        //     LEFT_MOTOR_CMD(0);
-        //     RIGHT_MOTOR_CMD(0);
-        //     loop_mtx.unlock();
-
-            //last_command_timestamp = curTime + COMMAND_TIMEOUT_US; // push out watchdog time to avoid a loop without sleep
-            usleep(500000);
-        // }
+        usleep(500000);
     }
 
     return 0;

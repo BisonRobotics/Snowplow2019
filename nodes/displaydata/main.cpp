@@ -112,6 +112,7 @@ int main(int argc, char* argv[]) {
 
     // start the asynch loop
     auto loop = CPJL_Message::loop();
+    (void)loop;
 
     // sleep forever
     while(true)

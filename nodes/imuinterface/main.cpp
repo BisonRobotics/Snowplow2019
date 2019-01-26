@@ -24,6 +24,21 @@ using namespace vn::protocol::uart;
 using namespace vn::xplat;
 
 std::string topicname = "vecnavdata";
+float starting_z_orient;
+
+float rotation_crossing(float angle)
+{
+    float returnVal = angle;
+    if(angle < (-180.0))
+    {
+        returnVal += 360;
+    }
+    else if(angle > 180.0)
+    {
+        returnVal -= 360;
+    }
+    return returnVal;
+}
 
 void imu_vector_to_robo_vector(float &x, float &y, float &z)
 {
@@ -43,7 +58,7 @@ void imu_vector_to_robo_vector(float &x, float &y, float &z)
 }
 
 int main(int argc, char* argv[]) {
-
+    static bool firstTime = true;
     std::string mount_loc;
     if(argc != 2) {
         cout << "Usage: " << argv[0] << " <vectornav mount location>" << endl;
@@ -74,7 +89,12 @@ int main(int argc, char* argv[]) {
             tempy = ypr.y;
             tempz = ypr.x;
 
-            imu->z_orient = tempz;
+            if (firstTime)
+            {
+                firstTime = false;
+                starting_z_orient = tempz;
+            }
+            imu->z_orient = rotation_crossing(tempz - starting_z_orient);
         }
         if(cd.hasAcceleration()) {
             auto accel = cd.acceleration();
@@ -94,7 +114,7 @@ int main(int argc, char* argv[]) {
             imu->x_vel = tempx;
             imu->y_vel = tempy;
         }
-        printf("Z orient: %2.2f    x vel: %2.2f    x accel: %2.2f    y vel: %2.2f    y accel: %2.2f", imu->z_orient, imu->x_vel, imu->x_acc, imu->y_vel, imu->y_acc);
+        printf("Z orient: %2.2f    x vel: %2.2f    x accel: %2.2f    y vel: %2.2f    y accel: %2.2f\n", imu->z_orient, imu->x_vel, imu->x_acc, imu->y_vel, imu->y_acc);
 
         // send data
         imu->putMessage();
