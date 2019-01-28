@@ -199,29 +199,56 @@ void encoder_callback(void){
 
         #ifdef PID
             static double error_integral[NUM_OF_WHEELS] = {0,0};
-            const double p[NUM_OF_WHEELS] = {6,6};
+            static double error_derivative[NUM_OF_WHEELS] = {0,0};
+            static double last_error[NUM_OF_WHEELS] = {0,0};
+            const double p[NUM_OF_WHEELS] = {8,8};
             const double i[NUM_OF_WHEELS] = {500,500};
+            const double d[NUM_OF_WHEELS] = {0,0};
+            double error[NUM_OF_WHEELS] = {0, 0};
 
             for(int wheel_index=0; wheel_index<NUM_OF_WHEELS; wheel_index++)
             {
-                //Find error
-                error_integral[wheel_index] += (setpoint[wheel_index] - wheel_rpm[wheel_index]) * dt;
+                // Find error
+                error[wheel_index] = setpoint[wheel_index] - wheel_rpm[wheel_index];
+                // Integrate error
+                error_integral[wheel_index] += error[wheel_index] * dt;
+                // Derive error
+                error_derivative[wheel_index] = (error[wheel_index] - last_error[wheel_index]) / dt;
 
                 //PID Calculation
-                cmd[wheel_index] = (setpoint[wheel_index] * p[wheel_index]) + (error_integral[wheel_index] * i[wheel_index]);
+                cmd[wheel_index] = 
+                        (error[wheel_index] * p[wheel_index]) +
+                        (error_integral[wheel_index] * i[wheel_index]) +
+                        (error_derivative[wheel_index] * d[wheel_index]);
 
                 //Adjust Output
                 if(cmd[wheel_index] > 1000)
                 {
                     cmd[wheel_index] = 1000;
-                    error_integral[wheel_index] = (1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
+                    // Make sure the integral doesn't run away
+                    // Ignoring d becaue we don't want to shrink the integral if d is making it overshoot
+                    // because d usually disapperes quickly
+                    double max_integral = (1000 - (error[wheel_index] * p[wheel_index])) / i[wheel_index];
+                    if (error_integral[wheel_index] > max_integral)
+                    {
+                        error_integral[wheel_index] = max_integral;
+                    }
                 }
 
                 if(cmd[wheel_index] < -1000)
                 {
                     cmd[wheel_index] = -1000;
-                    error_integral[wheel_index] = (-1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
+                    // Make sure the integral doesn't run away
+                    // Ignoring d becaue we don't want to shrink the integral if d is making it overshoot
+                    // because d usually disapperes quickly
+                    double min_integral = (-1000 - (error[wheel_index] * p[wheel_index])) / i[wheel_index];
+                    if (error_integral[wheel_index] < min_integral)
+                    {
+                        error_integral[wheel_index] = min_integral;
+                    }
                 }
+
+                last_error[wheel_index] = error[wheel_index];
             }
 
             printf("Timestamp: %5.2f\n", (float)UsecTimestamp() / 1000.0);
@@ -229,6 +256,8 @@ void encoder_callback(void){
             printf("Impact:       %3.2f         %3.2f\n", setpoint[LEFT_WHEEL] * p[LEFT_WHEEL], setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL]);
             printf("I     :    L  %3.2f     R:  %3.2f\n", error_integral[LEFT_WHEEL], error_integral[RIGHT_WHEEL]);
             printf("Impact:       %3.2f         %3.2f\n", error_integral[LEFT_WHEEL] * i[LEFT_WHEEL], error_integral[RIGHT_WHEEL] * i[RIGHT_WHEEL]);
+            printf("D     :    L  %3.2f     R:  %3.2f\n", error_derivative[LEFT_WHEEL], error_derivative[RIGHT_WHEEL]);
+            printf("Impact:       %3.2f         %3.2f\n", error_derivative[LEFT_WHEEL] * d[LEFT_WHEEL], error_derivative[RIGHT_WHEEL] * d[RIGHT_WHEEL]);
 
         #else//No PID
             static double prev_cmd[NUM_OF_WHEELS];
@@ -252,6 +281,8 @@ void encoder_callback(void){
                     cmd[i] = 0;
                 }
                 cmd[i] = clamp(cmd[i], -1000, 1000);
+
+                prev_cmd[i] = cmd[i];
             }
         #endif //PID
 
@@ -267,11 +298,6 @@ void encoder_callback(void){
         motor_control_command->timestamp = UsecTimestamp();
         motor_control_command->putMessage();
         motor_cmd_mutex.unlock();
-
-        for(int i=0 ; i<NUM_OF_WHEELS ; i++)
-        {
-            prev_cmd[i] = cmd[i];
-        }
 
         last_encoder_timestamp = (uint64_t)encoder->timestamp;
     }

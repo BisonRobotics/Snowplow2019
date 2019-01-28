@@ -46,6 +46,7 @@ void command_callback(void) {
     int temp_right_cmd = clamp(motor_control_command_rx->right, -MAX_MOTOR_COMMAND, MAX_MOTOR_COMMAND);
 
     last_command_timestamp = UsecTimestamp();
+    printf("Timestamp: %5.2f\n L:    %4d    R:  %4d", (float)UsecTimestamp() / 1000.0, temp_left_cmd, temp_right_cmd);
 
     if(!watchdog_triggered)
     {
