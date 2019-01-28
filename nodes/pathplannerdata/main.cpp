@@ -9,21 +9,24 @@
 #include <cpp/MotorControlCommand.h>
 #include <cpp/PathVector.h>
 #include <cpp/ImuData.h>
+#include <cpp/SickMeasurement.h>
 
 #include <misc.h>
 #include <unistd.h>
+#include <math.h>
 
 #define ENCODER_TICKS_PER_ROTATION      (2048.0)
 #define DEADZONE                        (1)
 #define WHEEL_CIRCUMFERENCE             (1.39) // meters
-#define WHEEL_CIRCUMFERENCE             (1.39) // meters
-#define AUTO_TASK_DELAY                 (100 * 1000) // us
-#define MAX_ROTATION_SPEED              (30.0) // RPM
+#define AUTO_TASK_DELAY                 (50 * 1000) // us
+#define MAX_ROTATION_SPEED              (15.0) // RPM
 #define MAX_TRAVEL_SPEED                (50.0) // RPM
-#define ROTATION_SLOWDOWN_ANGLE         (30)   // deg
-#define TRAVEL_SLOWDOWN_DISTANCE        (1.0)  // meters
+#define ROTATION_SLOWDOWN_ANGLE         (40)   // deg
+#define TRAVEL_SLOWDOWN_DISTANCE        (1.5)  // meters
 #define abs(x)                          ((x < 0) ? -x : x)
 #define MAX_TELEOP_SPEED                (400) // raw motor power
+
+#define PID
 
 
 enum wheels_e
@@ -37,7 +40,15 @@ enum state_e
 {
     TELEOP,
     AUTO,
-    TEST
+    TEST,
+    PID_TEST
+};
+
+enum obstacle_t
+{
+    OBSTACLE_LEFT,
+    OBSTACLE_RIGHT,
+    OBSTACLE_CENTER
 };
 
 
@@ -49,6 +60,7 @@ ImuData* imu_data_rx = NULL;
 PathVector* AutoVector = NULL;
 PathVector* pathStatus = NULL;
 Encoder* encoder = NULL;
+SickMeasurement* sickData = NULL;
 
 uint64_t last_timestamp = -1;
 float left_setpoint = 0, right_setpoint = 0;
@@ -78,7 +90,7 @@ double encoderDataToRPM(double encoderTicks, double timeDelta)
 
 void xbox_callback(void)
 {
-    if(CurrentState == TEST || CurrentState == TELEOP)
+    if(CurrentState == TEST || CurrentState == TELEOP || CurrentState == PID_TEST)
     {
         //receive data in xbox
         int left_motor
@@ -86,10 +98,6 @@ void xbox_callback(void)
         int right_motor
             = xbox_data_rx->y_joystick_right;
 
-        left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED , -MAX_TELEOP_SPEED);
-        left_motor = (abs(left_motor) < 50)? 0 : left_motor;
-        right_motor = (int)mapFloat(right_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
-        right_motor = (abs(right_motor) < 50)? 0 : right_motor;
 
         if(xbox_data_rx->button_b)
         {
@@ -104,13 +112,30 @@ void xbox_callback(void)
             exit(EXIT_SUCCESS);
         }
 
+        if(CurrentState == TELEOP)
+        {
+            left_motor = (int)mapFloat(left_motor, -32768, 32767, MAX_TELEOP_SPEED , -MAX_TELEOP_SPEED);
+            left_motor = (abs(left_motor) < 50)? 0 : left_motor;
+            right_motor = (int)mapFloat(right_motor, -32768, 32767, MAX_TELEOP_SPEED, -MAX_TELEOP_SPEED);
+            right_motor = (abs(right_motor) < 50)? 0 : right_motor;
         //package xbox data into motor controller command
-        motor_cmd_mutex.lock();
-            motor_control_command->left = left_motor;
-            motor_control_command->right = right_motor;
-            motor_control_command->timestamp = UsecTimestamp();
-            motor_control_command->putMessage();
-        motor_cmd_mutex.unlock();
+            motor_cmd_mutex.lock();
+                motor_control_command->left = left_motor;
+                motor_control_command->right = right_motor;
+                motor_control_command->timestamp = UsecTimestamp();
+                motor_control_command->putMessage();
+            motor_cmd_mutex.unlock();
+        }
+        else if(CurrentState == PID_TEST)
+        {
+            left_motor = (int)mapFloat(left_motor, -32768, 32767, 50 , -50);
+            left_motor = (abs(left_motor) < 2)? 0 : left_motor;
+            right_motor = (int)mapFloat(right_motor, -32768, 32767, 50, -50);
+            right_motor = (abs(right_motor) < 2)? 0 : right_motor;
+
+            left_setpoint = left_motor;
+            right_setpoint = right_motor;
+        }
 
         //cout << "Left: " << left_motor << ", Right: " << right_motor << endl;
     }
@@ -151,7 +176,7 @@ void encoder_callback(void){
     encoder_data_mtx.unlock();
 
     // Speed control, only done durring auto
-    if(CurrentState == AUTO)
+    if(CurrentState == AUTO || CurrentState == PID_TEST)
     {
         static uint64_t last_encoder_timestamp;
         double dt = encoder->timestamp - last_encoder_timestamp;
@@ -160,7 +185,6 @@ void encoder_callback(void){
 
         double wheel_rpm[NUM_OF_WHEELS];
         double setpoint[NUM_OF_WHEELS];
-        static double prev_cmd[NUM_OF_WHEELS];
         double cmd[NUM_OF_WHEELS];
 
         // Get wheel RPM
@@ -174,32 +198,40 @@ void encoder_callback(void){
         setpoint_mutex.unlock();
 
         #ifdef PID
-            double static error_integral[NUM_OF_WHEELS] = {0,0};
-            double p[NUM_OF_WHEELS] = {0,0};
-            double i[NUM_OF_WHEELS] = {0,0};
+            static double error_integral[NUM_OF_WHEELS] = {0,0};
+            const double p[NUM_OF_WHEELS] = {6,6};
+            const double i[NUM_OF_WHEELS] = {500,500};
 
             for(int wheel_index=0; wheel_index<NUM_OF_WHEELS; wheel_index++)
             {
-            //Find error
-            error_integral[wheel_index] += (setpoint[wheel_index] - wheel_rpm[wheel_index]) * dt;
+                //Find error
+                error_integral[wheel_index] += (setpoint[wheel_index] - wheel_rpm[wheel_index]) * dt;
 
-            //PID Calculation
-            cmd[wheel_index] = (setpoint[wheel_index] * p[wheel_index]) + (error_integral[wheel_index] * i[wheel_index]);
+                //PID Calculation
+                cmd[wheel_index] = (setpoint[wheel_index] * p[wheel_index]) + (error_integral[wheel_index] * i[wheel_index]);
 
-            //Adjust Output
-            if(cmd[wheel_index] > 1000)
-            {
-                cmd[wheel_index] = 1000;
-                error_integral[wheel_index] = (1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
+                //Adjust Output
+                if(cmd[wheel_index] > 1000)
+                {
+                    cmd[wheel_index] = 1000;
+                    error_integral[wheel_index] = (1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
+                }
+
+                if(cmd[wheel_index] < -1000)
+                {
+                    cmd[wheel_index] = -1000;
+                    error_integral[wheel_index] = (-1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
+                }
             }
 
-            if(cmd[wheel_index] < -1000)
-            {
-                cmd[wheel_index] = -1000;
-                error_integral[wheel_index] = (-1000 - (setpoint[wheel_index] * p[wheel_index])) / i[wheel_index];
-            }
+            printf("Timestamp: %5.2f\n", (float)UsecTimestamp() / 1000.0);
+            printf("P     :    L  %3.2f     R:  %3.2f\n", setpoint[LEFT_WHEEL], setpoint[RIGHT_WHEEL]);
+            printf("Impact:       %3.2f         %3.2f\n", setpoint[LEFT_WHEEL] * p[LEFT_WHEEL], setpoint[RIGHT_WHEEL] * p[RIGHT_WHEEL]);
+            printf("I     :    L  %3.2f     R:  %3.2f\n", error_integral[LEFT_WHEEL], error_integral[RIGHT_WHEEL]);
+            printf("Impact:       %3.2f         %3.2f\n", error_integral[LEFT_WHEEL] * i[LEFT_WHEEL], error_integral[RIGHT_WHEEL] * i[RIGHT_WHEEL]);
 
         #else//No PID
+            static double prev_cmd[NUM_OF_WHEELS];
             for(int i=0; i<NUM_OF_WHEELS; i++)
             {
                 if(setpoint[i] > (double)DEADZONE || setpoint[i] < (double)-DEADZONE)
@@ -230,8 +262,8 @@ void encoder_callback(void){
     #endif //NDEBUG
 
         motor_cmd_mutex.lock();
-        motor_control_command->left = cmd[LEFT_WHEEL];
-        motor_control_command->right = cmd[RIGHT_WHEEL];
+        motor_control_command->left = (int)cmd[LEFT_WHEEL];
+        motor_control_command->right = (int)cmd[RIGHT_WHEEL];
         motor_control_command->timestamp = UsecTimestamp();
         motor_control_command->putMessage();
         motor_cmd_mutex.unlock();
@@ -324,10 +356,10 @@ void auto_task_100ms(void)
     // Distance calculations
     float travel_command = local_requested_distance_traveled - local_encoder_distance;
     // Can be improved
-    if(abs(rotation_command) < 10.0)
+    if(abs(rotation_command) < 80.0)
     {
         float travel_wheel_command = clamp(
-            ((travel_command / (TRAVEL_SLOWDOWN_DISTANCE)) * MAX_TRAVEL_SPEED),
+            ((travel_command / (TRAVEL_SLOWDOWN_DISTANCE)) * MAX_TRAVEL_SPEED) * (0.5 + map_float(abs(rotation_command), 0, 80, .5, 0)),
             -MAX_TRAVEL_SPEED,
             MAX_TRAVEL_SPEED
         );
@@ -353,6 +385,104 @@ void auto_task_100ms(void)
             left_setpoint = left_wheel_cmd;
             right_setpoint = right_wheel_cmd;
         setpoint_mutex.unlock();
+    }
+}
+
+void pid_test_task(void)
+{
+    static int i = 0;
+    static int step = 0;
+
+    if (i<20)
+    {
+        i++;
+    }
+    else
+    {
+        i = 0;
+        switch(step)
+        {
+            case 0:
+                left_setpoint = 0;
+                right_setpoint = 0;
+            break;
+            case 1:
+                left_setpoint = 50;
+                right_setpoint = 50;
+            break;
+            case 2:
+                left_setpoint = 0;
+                right_setpoint = 0;
+            break;
+            case 3:
+                left_setpoint = -50;
+                right_setpoint = -50;
+            break;
+        };
+    }
+
+    step = (step+1) % 4;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+typedef struct
+{
+    float x;
+    float y;
+} point_t;
+
+typedef struct
+{
+    point_t topLeft;
+    point_t bottomRight;
+} rectangle_t;
+
+rectangle_t WarningBoxes[] = {{{ 2000, 2000}, {  900, 0}},
+                              {{  900, 2000}, { -900, 0}},
+                              {{ -900, 2000}, {-2000, 0}}};
+
+bool point_in_box(point_t point, rectangle_t rectangle)
+{
+    return (point.x <= rectangle.topLeft.x &&
+           point.y <= rectangle.topLeft.y &&
+           point.x >= rectangle.bottomRight.x &&
+           point.y >= rectangle.bottomRight.y);
+}
+
+void sick_callback(void)
+{
+    uint32_t obstickle_count[(sizeof(WarningBoxes)/sizeof(WarningBoxes[0]))];
+    bzero(obstickle_count, (sizeof(WarningBoxes)/sizeof(WarningBoxes[0])) * sizeof(uint32_t));
+    for(uint32_t point_index = 0; point_index < 541; point_index++)
+    {
+        // heres that mysterious magic number again...
+        float angle = 0.00872665*float(point_index) - 0.7853985;
+
+        point_t obsticle = {
+            sickData->data[point_index] * cosf(angle),  // x-coordinate
+            sickData->data[point_index] * sinf(angle)   // y-coordinate
+        };
+
+        if(point_index == 255)
+        {
+            //printf("point 255 is at %3.2f,  %3.2f\n", obsticle.x, obsticle.y);
+        }
+        for(uint32_t obsticle_index=0; obsticle_index<(sizeof(WarningBoxes)/sizeof(WarningBoxes[0])) ; obsticle_index++)
+        {
+            if(point_in_box(obsticle, WarningBoxes[obsticle_index]) && abs(obsticle.x) > .1 && abs(obsticle.y) > .1)
+            {
+                printf("Point %d is inside of box %d   X:  %3.2f    Y:  %3.2f\n", point_index, obsticle_index, obsticle.x, obsticle.y);
+                obstickle_count[obsticle_index]++;
+            }
+        }
+    }
+    for(uint32_t obsticle_index=0; obsticle_index<(sizeof(WarningBoxes)/sizeof(WarningBoxes[0])) ; obsticle_index++)
+    {
+        if(obstickle_count[obsticle_index] > 5)
+        {
+            printf("Found %d obstickes in box %d!\n", obstickle_count[obsticle_index], obsticle_index);
+
+        }
     }
 }
 
@@ -396,8 +526,14 @@ int main(int argc, char* argv[])
                     "encoder_data",
                     encoder_callback);
         //the Response message node
-        pathStatus = new PathVector( new CPJL( "localhost", 14000),
+        pathStatus = new PathVector( 
+                            new CPJL( "localhost", 14000),
                                     "path_status");
+
+        sickData = new SickMeasurement(
+                        new CPJL("localhost", 14000),
+                        "sick_data",
+                        sick_callback);
     }else if(currentMode == "TEST")
     {
         CurrentState = TEST;
@@ -422,6 +558,26 @@ int main(int argc, char* argv[])
                     new CPJL("localhost", 14000),
                     "xbox_data",
                     xbox_callback);
+        sickData = new SickMeasurement(
+                        new CPJL("localhost", 14000),
+                        "sick_data",
+                        sick_callback);
+    }
+    else if(currentMode == "PID")
+    {
+        CurrentState = PID_TEST;
+        encoder = new Encoder(
+                    new CPJL("localhost", 14000),
+                    "encoder_data",
+                    encoder_callback);
+        xbox_data_rx = new XboxData(
+                    new CPJL("localhost", 14000),
+                    "xbox_data",
+                    xbox_callback);
+        imu_data_rx = new ImuData(
+                    new CPJL("localhost", 14000),
+                    "vecnavdata",
+                    imu_calback);
     }
     else
     {
@@ -452,6 +608,10 @@ int main(int argc, char* argv[])
         if(CurrentState == AUTO || CurrentState == TEST)
         {
             auto_task_100ms();
+        }
+        else if(CurrentState == PID_TEST)
+        {
+            //pid_test_task();
         }
     }
     return 0;

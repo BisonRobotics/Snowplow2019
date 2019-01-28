@@ -92,4 +92,4 @@ while True:
 
     print("  TX: left: " + str(encoder_obj.left) + ", right: " + str(encoder_obj.right))
     current_loop_iteration = current_loop_iteration + 1
-    sleep(0.1)
+    sleep(0.04)
